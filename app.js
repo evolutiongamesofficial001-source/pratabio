@@ -31,9 +31,9 @@ function qEqual(field, value) {
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
-function addDaysISO(iso, days) {
+function addMonthsISO(iso, months) {
   const d = new Date(iso + "T00:00:00");
-  d.setDate(d.getDate() + Number(days));
+  d.setMonth(d.getMonth() + Number(months));
   return d.toISOString().slice(0, 10);
 }
 function diasRestantes(vencISO) {
@@ -448,7 +448,7 @@ function renderEpis(data) {
       ([id, ep]) => `<tr>
       <td>${esc(ep.nome)}</td>
       <td>${esc(ep.registro)}</td>
-      <td>${esc(ep.validadeDias)} dias</td>
+      <td>${esc(ep.validadeMeses)} meses</td>
       <td>
         <button class="btn small edit" onclick="editarEpi('${id}')">Editar</button>
         <button class="btn small delete" onclick="excluirEpi('${id}')">Excluir</button>
@@ -464,7 +464,7 @@ document.getElementById("formEpi").addEventListener("submit", async (e) => {
   const dados = {
     nome: document.getElementById("epiNome").value.trim(),
     registro: document.getElementById("epiRegistro").value.trim(),
-    validadeDias: Number(document.getElementById("epiValidadeDias").value),
+    validadeMeses: Number(document.getElementById("epiValidadeDias").value),
     dataCadastro: id ? episCache[id]?.dataCadastro || todayISO() : todayISO(),
   };
   if (id) {
@@ -550,7 +550,7 @@ async function loadEntregasPage() {
       clearId: "entEpiClear",
       getData: () => episCache,
       renderMain: (ep) => ep.nome,
-      renderSub: (ep) => `CA ${ep.registro} · validade ${ep.validadeDias} dias`,
+      renderSub: (ep) => `CA ${ep.registro} · validade ${ep.validadeMeses} meses`,
       matchFields: (ep) => [ep.nome, ep.registro],
     });
   }
@@ -602,7 +602,7 @@ document.getElementById("formEntrega").addEventListener("submit", async (e) => {
     return;
   }
 
-  const dataVencimento = addDaysISO(dataEntrega, epi.validadeDias);
+  const dataVencimento = addMonthsISO(dataEntrega, epi.validadeMeses);
 
   const dados = {
     funcionarioId: funcId,
@@ -631,7 +631,7 @@ async function renovarEntrega(id) {
 
   const epi = episCache[e.epiId] || (await dbGet(`epis/${e.epiId}`));
   const novaEntrega = todayISO();
-  const novoVencimento = addDaysISO(novaEntrega, epi.validadeDias);
+  const novoVencimento = addMonthsISO(novaEntrega, epi.validadeMeses);
 
   const historico = e.historico || [];
   historico.push({ dataEntrega: e.dataEntrega, dataVencimento: e.dataVencimento });

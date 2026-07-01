@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Controle de EPI</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="logo">🦺 Controle EPI</div>
+    <nav>
+      <a href="#dashboard" class="nav-link" data-route="dashboard">📊 Dashboard</a>
+      <a href="#funcionarios" class="nav-link" data-route="funcionarios">👤 Funcionários</a>
+      <a href="#epis" class="nav-link" data-route="epis">🧤 Cadastro de EPI</a>
+      <a href="#entregas" class="nav-link" data-route="entregas">📦 Entregar / Renovar</a>
+      <a href="#analise" class="nav-link" data-route="analise">🔎 Análise / Exportar</a>
+    </nav>
+  </aside>
+
+  <!-- CONTEÚDO -->
+  <main class="content">
+
+    <!-- DASHBOARD -->
+    <section id="sec-dashboard" class="page">
+      <h1>Dashboard</h1>
+      <div class="cards">
+        <div class="card danger">
+          <span class="card-num" id="dashVencidos">-</span>
+          <span class="card-label">EPIs vencidos</span>
+        </div>
+        <div class="card warning">
+          <span class="card-num" id="dashAtencao">-</span>
+          <span class="card-label">Vencendo em 30 dias</span>
+        </div>
+        <div class="card success">
+          <span class="card-num" id="dashFuncionarios">-</span>
+          <span class="card-label">Funcionários cadastrados</span>
+        </div>
+        <div class="card info">
+          <span class="card-num" id="dashEpis">-</span>
+          <span class="card-label">Tipos de EPI cadastrados</span>
+        </div>
+      </div>
+
+      <h2>Alertas de vencimento</h2>
+      <table class="tbl">
+        <thead><tr><th>Funcionário</th><th>EPI</th><th>Registro (CA)</th><th>Vencimento</th><th>Situação</th></tr></thead>
+        <tbody id="dashAlertBody"><tr><td colspan="5" class="muted">Carregando...</td></tr></tbody>
+      </table>
+    </section>
+
+    <!-- FUNCIONÁRIOS -->
+    <section id="sec-funcionarios" class="page hidden">
+      <h1>Funcionários</h1>
+      <form id="formFuncionario" class="form-inline">
+        <input type="hidden" id="funcId">
+        <input type="text" id="funcNome" placeholder="Nome completo" required>
+        <input type="text" id="funcCargo" placeholder="Cargo">
+        <input type="text" id="funcMatricula" placeholder="Matrícula">
+        <input type="text" id="funcSetor" placeholder="Setor">
+        <button type="submit" class="btn primary">Salvar</button>
+        <button type="button" id="funcCancelar" class="btn ghost hidden">Cancelar</button>
+      </form>
+
+      <input type="text" id="buscaFuncionario" class="search" placeholder="🔎 Buscar por nome, cargo, matrícula ou setor...">
+
+      <table class="tbl">
+        <thead><tr><th>Nome</th><th>Cargo</th><th>Matrícula</th><th>Setor</th><th>Ações</th></tr></thead>
+        <tbody id="funcionariosBody"><tr><td colspan="5" class="muted">Carregando...</td></tr></tbody>
+      </table>
+    </section>
+
+    <!-- EPIs -->
+    <section id="sec-epis" class="page hidden">
+      <h1>Cadastro de EPI</h1>
+      <form id="formEpi" class="form-inline">
+        <input type="hidden" id="epiId">
+        <input type="text" id="epiNome" placeholder="Nome do EPI" required>
+        <input type="text" id="epiRegistro" placeholder="Registro (CA)" required>
+        <input type="number" id="epiValidadeDias" placeholder="Validade (dias de uso)" required min="1">
+        <button type="submit" class="btn primary">Salvar</button>
+        <button type="button" id="epiCancelar" class="btn ghost hidden">Cancelar</button>
+      </form>
+
+      <input type="text" id="buscaEpi" class="search" placeholder="🔎 Buscar por nome ou registro (CA)...">
+
+      <table class="tbl">
+        <thead><tr><th>Nome</th><th>Registro (CA)</th><th>Validade (dias)</th><th>Ações</th></tr></thead>
+        <tbody id="episBody"><tr><td colspan="4" class="muted">Carregando...</td></tr></tbody>
+      </table>
+    </section>
+
+    <!-- ENTREGAS / RENOVAÇÃO -->
+    <section id="sec-entregas" class="page hidden">
+      <h1>Entregar / Renovar EPI</h1>
+      <form id="formEntrega" class="form-inline">
+
+        <div class="combobox" id="comboFuncionario">
+          <input type="text" id="entFuncionarioInput" class="combo-input" placeholder="🔎 Buscar funcionário..." autocomplete="off" required>
+          <input type="hidden" id="entFuncionario">
+          <button type="button" class="combo-clear hidden" id="entFuncionarioClear" title="Limpar">✕</button>
+          <div class="combobox-list hidden" id="entFuncionarioList"></div>
+        </div>
+
+        <div class="combobox" id="comboEpi">
+          <input type="text" id="entEpiInput" class="combo-input" placeholder="🔎 Buscar EPI..." autocomplete="off" required>
+          <input type="hidden" id="entEpi">
+          <button type="button" class="combo-clear hidden" id="entEpiClear" title="Limpar">✕</button>
+          <div class="combobox-list hidden" id="entEpiList"></div>
+        </div>
+
+        <input type="date" id="entData" required>
+        <button type="submit" class="btn primary">Entregar EPI</button>
+      </form>
+
+      <input type="text" id="buscaEntrega" class="search" placeholder="🔎 Buscar por funcionário, EPI ou registro...">
+
+      <table class="tbl">
+        <thead><tr><th>Funcionário</th><th>EPI</th><th>Registro</th><th>Entrega</th><th>Vencimento</th><th>Dias restantes</th><th>Situação</th><th>Ações</th></tr></thead>
+        <tbody id="entregasBody"><tr><td colspan="8" class="muted">Carregando...</td></tr></tbody>
+      </table>
+    </section>
+
+    <!-- ANÁLISE / EXPORTAR -->
+    <section id="sec-analise" class="page hidden">
+      <h1>Análise Geral</h1>
+      <input type="text" id="buscaAnalise" class="search" placeholder="🔎 Buscar por funcionário, EPI ou registro...">
+
+      <table class="tbl">
+        <thead><tr><th>Funcionário</th><th>EPI</th><th>Registro</th><th>Entrega</th><th>Vencimento</th><th>Dias restantes</th><th>Situação</th></tr></thead>
+        <tbody id="analiseBody"><tr><td colspan="7" class="muted">Carregando...</td></tr></tbody>
+      </table>
+
+      <div class="export-box">
+        <h2>Exportar ficha (PDF para impressão)</h2>
+        <div class="form-inline">
+          <div class="combobox" id="comboExport">
+            <input type="text" id="exportFuncionarioInput" class="combo-input" placeholder="🔎 Todos os funcionários (ou busque um específico)..." autocomplete="off">
+            <input type="hidden" id="exportFuncionario" value="todos">
+            <button type="button" class="combo-clear hidden" id="exportFuncionarioClear" title="Limpar">✕</button>
+            <div class="combobox-list hidden" id="exportFuncionarioList"></div>
+          </div>
+          <button id="btnExportar" class="btn primary">🖨️ Gerar e Imprimir Ficha</button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- MODAL FICHA DO FUNCIONÁRIO -->
+<div id="modalFuncionario" class="modal hidden">
+  <div class="modal-box">
+    <button id="modalFechar" class="btn ghost close-btn">✕</button>
+    <div id="modalConteudo"></div>
+  </div>
+</div>
+
+<!-- ÁREA DE IMPRESSÃO (somente visível ao imprimir) -->
+<div id="printArea"></div>
+
+<script src="app.js"></script>
+</body>
+</html>

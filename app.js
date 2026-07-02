@@ -31,6 +31,11 @@ function qEqual(field, value) {
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
+function addDaysISO(iso, dias) {
+  const d = new Date(iso + "T00:00:00");
+  d.setDate(d.getDate() + Number(dias));
+  return d.toISOString().slice(0, 10);
+}
 function addMonthsISO(iso, months) {
   const d = new Date(iso + "T00:00:00");
   d.setMonth(d.getMonth() + Number(months));
@@ -234,6 +239,12 @@ function router() {
     if (link) link.classList.toggle("active", r === hash);
   });
 
+  // reinicia a animação de entrada da página ativa (força reflow)
+  const secAtiva = document.getElementById("sec-" + hash);
+  secAtiva.classList.remove("page-anim");
+  void secAtiva.offsetWidth;
+  secAtiva.classList.add("page-anim");
+
   if (hash === "dashboard") loadDashboard();
   if (hash === "funcionarios") loadFuncionarios();
   if (hash === "epis") loadEpis();
@@ -249,7 +260,7 @@ window.addEventListener("DOMContentLoaded", () => {
 /* ====================== DASHBOARD ====================== */
 async function loadDashboard() {
   const body = document.getElementById("dashAlertBody");
-  body.innerHTML = `<tr><td colspan="5" class="muted">Carregando...</td></tr>`;
+  body.innerHTML = `<tr><td colspan="5" class="muted"><svg class="icon muted-icon spinner"><use href="#i-loader"/></svg>Carregando...</td></tr>`;
 
   const limite = addDaysISO(todayISO(), 30);
 
@@ -272,14 +283,14 @@ async function loadDashboard() {
   const todos = [...vencidos, ...atencao].sort((a, b) => diasRestantes(a[1].dataVencimento) - diasRestantes(b[1].dataVencimento));
 
   if (todos.length === 0) {
-    body.innerHTML = `<tr><td colspan="5" class="muted">Nenhum alerta de vencimento 🎉</td></tr>`;
+    body.innerHTML = `<tr><td colspan="5" class="muted"><svg class="icon muted-icon"><use href="#i-check"/></svg>Nenhum alerta de vencimento</td></tr>`;
     return;
   }
 
   body.innerHTML = todos
-    .map(([id, e]) => {
+    .map(([id, e], i) => {
       const sit = situacao(e.dataVencimento);
-      return `<tr>
+      return `<tr style="animation-delay:${Math.min(i, 12) * 30}ms">
         <td>${esc(e.funcionarioNome)}</td>
         <td>${esc(e.epiNome)}</td>
         <td>${esc(e.epiRegistro)}</td>
@@ -295,7 +306,7 @@ let funcionariosCache = {};
 
 async function loadFuncionarios() {
   const body = document.getElementById("funcionariosBody");
-  body.innerHTML = `<tr><td colspan="5" class="muted">Carregando...</td></tr>`;
+  body.innerHTML = `<tr><td colspan="4" class="muted"><svg class="icon muted-icon spinner"><use href="#i-loader"/></svg>Carregando...</td></tr>`;
   funcionariosCache = await dbGet("funcionarios");
   renderFuncionarios(funcionariosCache);
 }
@@ -304,20 +315,19 @@ function renderFuncionarios(data) {
   const body = document.getElementById("funcionariosBody");
   const entries = Object.entries(data);
   if (entries.length === 0) {
-    body.innerHTML = `<tr><td colspan="5" class="muted">Nenhum funcionário cadastrado</td></tr>`;
+    body.innerHTML = `<tr><td colspan="4" class="muted">Nenhum funcionário cadastrado</td></tr>`;
     return;
   }
   body.innerHTML = entries
     .map(
-      ([id, f]) => `<tr>
+      ([id, f], i) => `<tr style="animation-delay:${Math.min(i, 12) * 30}ms">
       <td>${esc(f.nome)}</td>
       <td>${esc(f.cargo) || "-"}</td>
       <td>${esc(f.matricula) || "-"}</td>
-      <td>${esc(f.setor) || "-"}</td>
       <td>
-        <button class="btn small ver" onclick="abrirFichaFuncionario('${id}')">Ficha</button>
-        <button class="btn small edit" onclick="editarFuncionario('${id}')">Editar</button>
-        <button class="btn small delete" onclick="excluirFuncionario('${id}')">Excluir</button>
+        <button class="btn small ver" onclick="abrirFichaFuncionario('${id}')"><svg class="icon"><use href="#i-file"/></svg>Ficha</button>
+        <button class="btn small edit" onclick="editarFuncionario('${id}')"><svg class="icon"><use href="#i-pencil"/></svg>Editar</button>
+        <button class="btn small delete" onclick="excluirFuncionario('${id}')"><svg class="icon"><use href="#i-trash"/></svg>Excluir</button>
       </td>
     </tr>`
     )
@@ -331,7 +341,6 @@ document.getElementById("formFuncionario").addEventListener("submit", async (e) 
     nome: document.getElementById("funcNome").value.trim(),
     cargo: document.getElementById("funcCargo").value.trim(),
     matricula: document.getElementById("funcMatricula").value.trim(),
-    setor: document.getElementById("funcSetor").value.trim(),
     dataCadastro: id ? funcionariosCache[id]?.dataCadastro || todayISO() : todayISO(),
   };
   if (id) {
@@ -351,7 +360,6 @@ function editarFuncionario(id) {
   document.getElementById("funcNome").value = f.nome || "";
   document.getElementById("funcCargo").value = f.cargo || "";
   document.getElementById("funcMatricula").value = f.matricula || "";
-  document.getElementById("funcSetor").value = f.setor || "";
   document.getElementById("funcCancelar").classList.remove("hidden");
   window.scrollTo(0, 0);
 }
@@ -371,7 +379,7 @@ document.getElementById("buscaFuncionario").addEventListener("input", (e) => {
   const termo = normaliza(e.target.value);
   const filtrado = Object.fromEntries(
     Object.entries(funcionariosCache).filter(([id, f]) =>
-      [f.nome, f.cargo, f.matricula, f.setor].some((campo) => normaliza(campo).includes(termo))
+      [f.nome, f.cargo, f.matricula].some((campo) => normaliza(campo).includes(termo))
     )
   );
   renderFuncionarios(filtrado);
@@ -381,7 +389,9 @@ document.getElementById("buscaFuncionario").addEventListener("input", (e) => {
 async function abrirFichaFuncionario(id) {
   const modal = document.getElementById("modalFuncionario");
   const conteudo = document.getElementById("modalConteudo");
-  conteudo.innerHTML = `<p class="muted">Carregando...</p>`;
+  conteudo.innerHTML = `<p class="muted"><svg class="icon muted-icon spinner"><use href="#i-loader"/></svg>Carregando...</p>`;
+  modal.classList.add("hidden");
+  void modal.offsetWidth;
   modal.classList.remove("hidden");
 
   const [funcionario, entregas] = await Promise.all([
@@ -394,7 +404,7 @@ async function abrirFichaFuncionario(id) {
   conteudo.innerHTML = `
     <h2>${esc(funcionario.nome)}</h2>
     <p class="muted" style="text-align:left;padding:4px 0 14px;">
-      ${esc(funcionario.cargo) || "-"} · Matrícula: ${esc(funcionario.matricula) || "-"} · Setor: ${esc(funcionario.setor) || "-"}
+      ${esc(funcionario.cargo) || "-"} · Matrícula: ${esc(funcionario.matricula) || "-"}
     </p>
     <table class="tbl">
       <thead><tr><th>EPI</th><th>Registro</th><th>Entrega</th><th>Vencimento</th><th>Situação</th></tr></thead>
@@ -418,7 +428,7 @@ async function abrirFichaFuncionario(id) {
       </tbody>
     </table>
     <div style="margin-top:16px;text-align:right;">
-      <button class="btn primary" onclick="exportarFicha('${id}')">🖨️ Imprimir Ficha</button>
+      <button class="btn primary" onclick="exportarFicha('${id}')"><svg class="icon"><use href="#i-printer"/></svg>Imprimir ficha</button>
     </div>
   `;
 }
@@ -431,7 +441,7 @@ let episCache = {};
 
 async function loadEpis() {
   const body = document.getElementById("episBody");
-  body.innerHTML = `<tr><td colspan="4" class="muted">Carregando...</td></tr>`;
+  body.innerHTML = `<tr><td colspan="4" class="muted"><svg class="icon muted-icon spinner"><use href="#i-loader"/></svg>Carregando...</td></tr>`;
   episCache = await dbGet("epis");
   renderEpis(episCache);
 }
@@ -445,13 +455,13 @@ function renderEpis(data) {
   }
   body.innerHTML = entries
     .map(
-      ([id, ep]) => `<tr>
+      ([id, ep], i) => `<tr style="animation-delay:${Math.min(i, 12) * 30}ms">
       <td>${esc(ep.nome)}</td>
       <td>${esc(ep.registro)}</td>
       <td>${esc(ep.validadeMeses)} meses</td>
       <td>
-        <button class="btn small edit" onclick="editarEpi('${id}')">Editar</button>
-        <button class="btn small delete" onclick="excluirEpi('${id}')">Excluir</button>
+        <button class="btn small edit" onclick="editarEpi('${id}')"><svg class="icon"><use href="#i-pencil"/></svg>Editar</button>
+        <button class="btn small delete" onclick="excluirEpi('${id}')"><svg class="icon"><use href="#i-trash"/></svg>Excluir</button>
       </td>
     </tr>`
     )
@@ -483,7 +493,7 @@ function editarEpi(id) {
   document.getElementById("epiId").value = id;
   document.getElementById("epiNome").value = ep.nome || "";
   document.getElementById("epiRegistro").value = ep.registro || "";
-  document.getElementById("epiValidadeDias").value = ep.validadeDias || "";
+  document.getElementById("epiValidadeDias").value = ep.validadeMeses || "";
   document.getElementById("epiCancelar").classList.remove("hidden");
   window.scrollTo(0, 0);
 }
@@ -515,7 +525,7 @@ let comboFuncionarioEntrega, comboEpiEntrega;
 
 async function loadEntregasPage() {
   const body = document.getElementById("entregasBody");
-  body.innerHTML = `<tr><td colspan="8" class="muted">Carregando...</td></tr>`;
+  body.innerHTML = `<tr><td colspan="8" class="muted"><svg class="icon muted-icon spinner"><use href="#i-loader"/></svg>Carregando...</td></tr>`;
 
   const [funcionarios, epis, entregas] = await Promise.all([dbGet("funcionarios"), dbGet("epis"), dbGet("entregas")]);
 
@@ -537,8 +547,8 @@ async function loadEntregasPage() {
       clearId: "entFuncionarioClear",
       getData: () => funcionariosCache,
       renderMain: (f) => f.nome,
-      renderSub: (f) => [f.cargo, f.setor].filter(Boolean).join(" · "),
-      matchFields: (f) => [f.nome, f.cargo, f.matricula, f.setor],
+      renderSub: (f) => f.cargo || "",
+      matchFields: (f) => [f.nome, f.cargo, f.matricula],
     });
   }
 
@@ -566,9 +576,9 @@ function renderEntregas(data) {
     return;
   }
   body.innerHTML = entries
-    .map(([id, e]) => {
+    .map(([id, e], i) => {
       const sit = situacao(e.dataVencimento);
-      return `<tr>
+      return `<tr style="animation-delay:${Math.min(i, 12) * 30}ms">
         <td>${esc(e.funcionarioNome)}</td>
         <td>${esc(e.epiNome)}</td>
         <td>${esc(e.epiRegistro)}</td>
@@ -576,7 +586,7 @@ function renderEntregas(data) {
         <td>${formatBR(e.dataVencimento)}</td>
         <td>${diasRestantes(e.dataVencimento)}</td>
         <td><span class="badge ${sit.cls}">${sit.label}</span></td>
-        <td><button class="btn small renovar" onclick="renovarEntrega('${id}')">Renovar</button></td>
+        <td><button class="btn small renovar" onclick="renovarEntrega('${id}')"><svg class="icon"><use href="#i-refresh"/></svg>Renovar</button></td>
       </tr>`;
     })
     .join("");
@@ -660,9 +670,24 @@ document.getElementById("buscaEntrega").addEventListener("input", (e) => {
 let analiseCache = {};
 let comboFuncionarioExport;
 
+/* Alterna entre "todos" e "um funcionário" no momento de gerar a impressão */
+function atualizarModoExport() {
+  const um = document.getElementById("modoUm").checked;
+  const comboWrap = document.getElementById("comboExport");
+  const exportInput = document.getElementById("exportFuncionarioInput");
+  comboWrap.classList.toggle("is-disabled", !um);
+  exportInput.disabled = !um;
+  if (!um) {
+    if (comboFuncionarioExport) comboFuncionarioExport.limpar();
+    document.getElementById("exportFuncionario").value = "todos";
+  }
+}
+document.getElementById("modoTodos").addEventListener("change", atualizarModoExport);
+document.getElementById("modoUm").addEventListener("change", atualizarModoExport);
+
 async function loadAnalise() {
   const body = document.getElementById("analiseBody");
-  body.innerHTML = `<tr><td colspan="7" class="muted">Carregando...</td></tr>`;
+  body.innerHTML = `<tr><td colspan="7" class="muted"><svg class="icon muted-icon spinner"><use href="#i-loader"/></svg>Carregando...</td></tr>`;
 
   const [entregas, funcionarios] = await Promise.all([dbGet("entregas"), dbGet("funcionarios")]);
   analiseCache = entregas;
@@ -670,6 +695,8 @@ async function loadAnalise() {
 
   document.getElementById("exportFuncionarioInput").value = "";
   document.getElementById("exportFuncionario").value = "todos";
+  document.getElementById("modoTodos").checked = true;
+  atualizarModoExport();
 
   if (!comboFuncionarioExport) {
     comboFuncionarioExport = criarCombobox({
@@ -679,8 +706,8 @@ async function loadAnalise() {
       clearId: "exportFuncionarioClear",
       getData: () => funcionariosCache,
       renderMain: (f) => f.nome,
-      renderSub: (f) => [f.cargo, f.setor].filter(Boolean).join(" · "),
-      matchFields: (f) => [f.nome, f.cargo, f.matricula, f.setor],
+      renderSub: (f) => f.cargo || "",
+      matchFields: (f) => [f.nome, f.cargo, f.matricula],
       onClear: () => {
         document.getElementById("exportFuncionario").value = "todos";
       },
@@ -698,9 +725,9 @@ function renderAnalise(data) {
     return;
   }
   body.innerHTML = entries
-    .map(([id, e]) => {
+    .map(([id, e], i) => {
       const sit = situacao(e.dataVencimento);
-      return `<tr>
+      return `<tr style="animation-delay:${Math.min(i, 12) * 30}ms">
         <td>${esc(e.funcionarioNome)}</td>
         <td>${esc(e.epiNome)}</td>
         <td>${esc(e.epiRegistro)}</td>
@@ -724,11 +751,21 @@ document.getElementById("buscaAnalise").addEventListener("input", (e) => {
 });
 
 document.getElementById("btnExportar").addEventListener("click", () => {
-  const id = document.getElementById("exportFuncionario").value || "todos";
-  exportarFicha(id);
+  const um = document.getElementById("modoUm").checked;
+  if (um) {
+    const id = document.getElementById("exportFuncionario").value;
+    if (!id || id === "todos") {
+      alert("Busque e selecione um funcionário na lista antes de gerar a ficha individual.");
+      document.getElementById("exportFuncionarioInput").focus();
+      return;
+    }
+    exportarFicha(id);
+  } else {
+    exportarFicha("todos");
+  }
 });
 
-/* Gera a ficha para impressão: um funcionário específico ou "todos" */
+/* Gera a ficha para impressão: um funcionário específico ou "todos", escolhido na hora */
 async function exportarFicha(alvoId) {
   const printArea = document.getElementById("printArea");
   const dataGeracao = formatBR(todayISO());
@@ -738,43 +775,83 @@ async function exportarFicha(alvoId) {
       dbGet(`funcionarios/${alvoId}`),
       dbGet("entregas", qEqual("funcionarioId", alvoId)),
     ]);
-    printArea.innerHTML = montarBlocoFicha(funcionario, entregas, dataGeracao);
+    printArea.innerHTML = montarCabecalhoDoc("Ficha de EPI", dataGeracao) + montarBlocoFicha(funcionario, entregas);
   } else {
     const [funcionarios, entregas] = await Promise.all([dbGet("funcionarios"), dbGet("entregas")]);
-    let html = `<h1>Ficha Geral de EPIs — Todos os Funcionários</h1><p class="sub">Gerado em ${dataGeracao}</p>`;
-    Object.entries(funcionarios).forEach(([id, f]) => {
-      const entregasFunc = Object.fromEntries(Object.entries(entregas).filter(([eid, e]) => e.funcionarioId === id));
-      html += montarBlocoFicha(f, entregasFunc, null, true);
-    });
-    printArea.innerHTML = html;
+    const blocos = Object.entries(funcionarios)
+      .sort((a, b) => (a[1].nome || "").localeCompare(b[1].nome || "", "pt-BR"))
+      .map(([id, f]) => {
+        const entregasFunc = Object.fromEntries(Object.entries(entregas).filter(([eid, e]) => e.funcionarioId === id));
+        return montarBlocoFicha(f, entregasFunc);
+      })
+      .join("");
+    printArea.innerHTML = montarCabecalhoDoc("Ficha geral de EPIs — todos os funcionários", dataGeracao) + blocos;
   }
 
   setTimeout(() => window.print(), 200);
 }
 
-function montarBlocoFicha(funcionario, entregas, dataGeracao, semTitulo) {
+/* Cabeçalho único do documento impresso */
+function montarCabecalhoDoc(titulo, dataGeracao) {
+  return `
+    <div class="doc-header">
+      <div class="doc-title">
+        <span class="doc-mark" aria-hidden="true"></span>
+        <h1>${esc(titulo)}</h1>
+      </div>
+      <p class="sub">Documento gerado em ${dataGeracao} · Controle de EPI</p>
+    </div>
+  `;
+}
+
+/* Um bloco de ficha por funcionário: cabeçalho com resumo, tabela e linhas de assinatura */
+function montarBlocoFicha(funcionario, entregas) {
   const lista = Object.values(entregas).sort((a, b) => (a.dataVencimento < b.dataVencimento ? -1 : 1));
+  const vencidos = lista.filter((e) => diasRestantes(e.dataVencimento) < 0).length;
+  const atencao = lista.filter((e) => {
+    const d = diasRestantes(e.dataVencimento);
+    return d >= 0 && d <= 30;
+  }).length;
+  const ok = lista.length - vencidos - atencao;
+
   const linhas = lista.length
     ? lista
         .map((e) => {
           const sit = situacao(e.dataVencimento);
           return `<tr>
           <td>${esc(e.epiNome)}</td>
-          <td>${esc(e.epiRegistro)}</td>
+          <td class="mono">${esc(e.epiRegistro)}</td>
           <td>${formatBR(e.dataEntrega)}</td>
           <td>${formatBR(e.dataVencimento)}</td>
-          <td>${sit.label}</td>
+          <td><span class="sit sit-${sit.cls}">${sit.label}</span></td>
         </tr>`;
         })
         .join("")
-    : `<tr><td colspan="5">Nenhum EPI entregue</td></tr>`;
+    : `<tr><td colspan="5" class="ficha-empty">Nenhum EPI entregue até o momento</td></tr>`;
 
   return `
-    ${!semTitulo ? `<h1>Ficha de EPI</h1><p class="sub">Gerado em ${dataGeracao}</p>` : ""}
-    <h3>${esc(funcionario.nome)} — ${esc(funcionario.cargo) || "-"} · Matrícula: ${esc(funcionario.matricula) || "-"} · Setor: ${esc(funcionario.setor) || "-"}</h3>
-    <table>
-      <thead><tr><th>EPI</th><th>Registro (CA)</th><th>Entrega</th><th>Vencimento</th><th>Situação</th></tr></thead>
-      <tbody>${linhas}</tbody>
-    </table>
+    <section class="ficha-card">
+      <header class="ficha-head">
+        <div>
+          <h3>${esc(funcionario.nome)}</h3>
+          <p class="ficha-meta">${esc(funcionario.cargo) || "Cargo não informado"} · Matrícula ${esc(funcionario.matricula) || "-"}</p>
+        </div>
+        <div class="ficha-resumo">
+          ${ok ? `<span class="chip chip-ok">${ok} em dia</span>` : ""}
+          ${atencao ? `<span class="chip chip-atencao">${atencao} a vencer</span>` : ""}
+          ${vencidos ? `<span class="chip chip-vencido">${vencidos} vencido(s)</span>` : ""}
+          ${!lista.length ? `<span class="chip chip-vazio">sem registros</span>` : ""}
+        </div>
+      </header>
+      <table>
+        <thead><tr><th>EPI</th><th>Registro (CA)</th><th>Entrega</th><th>Vencimento</th><th>Situação</th></tr></thead>
+        <tbody>${linhas}</tbody>
+      </table>
+      <footer class="ficha-sign">
+        <div class="sign-line"><span>Assinatura do funcionário</span></div>
+        <div class="sign-line"><span>Responsável pela entrega</span></div>
+      </footer>
+    </section>
   `;
 }
+

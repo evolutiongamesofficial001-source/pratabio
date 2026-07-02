@@ -8,17 +8,48 @@
 </head>
 <body>
 
+<!-- ====================== SPRITE DE ÍCONES (SVG) ======================
+     Todos os ícones do sistema vivem aqui como <symbol>. São referenciados
+     via <use href="#i-..."> e herdam a cor do texto (currentColor), então
+     não usamos nenhuma imagem, fonte de ícone externa ou emoji. -->
+<svg style="display:none">
+  <defs>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.8-3 8.7-7 10-4-1.3-7-5.2-7-10V6l7-3z"/><path d="M9 12l2 2 4-4"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.4"/><rect x="14" y="3" width="7" height="7" rx="1.4"/><rect x="3" y="14" width="7" height="7" rx="1.4"/><rect x="14" y="14" width="7" height="7" rx="1.4"/></symbol>
+    <symbol id="i-person" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c0-3.9 3.1-7 7-7s7 3.1 7 7"/></symbol>
+    <symbol id="i-package" viewBox="0 0 24 24"><path d="M3 8l9-4 9 4-9 4-9-4z"/><path d="M3 8v8l9 4 9-4V8"/><path d="M12 12v8"/></symbol>
+    <symbol id="i-bars" viewBox="0 0 24 24"><path d="M4 20V10"/><path d="M12 20V4"/><path d="M20 20v-7"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.3-4.3"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M5 5l14 14"/><path d="M19 5L5 19"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/></symbol>
+    <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M4 20h4l11-11-4-4L4 16v4z"/><path d="M14 6l4 4"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><path d="M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 14-5.3"/><path d="M20 12a8 8 0 0 1-14 5.3"/><path d="M18 3v5h-5"/><path d="M6 21v-5h5"/></symbol>
+    <symbol id="i-printer" viewBox="0 0 24 24"><path d="M6 9V3h12v6"/><rect x="4" y="9" width="16" height="8" rx="1.4"/><path d="M6 17v4h12v-4"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 4l9 16H3l9-16z"/><path d="M12 10v4"/><circle cx="12" cy="16.9" r="0.9" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3.5 2"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M8 12.3l2.6 2.6L16 9.5"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></symbol>
+    <symbol id="i-party" viewBox="0 0 24 24"><path d="M4 20l3-11 11 3-9 9-5-1z"/><path d="M14 3l1.6 1.6M18 6l1.6 1.6M17 2.4L18.6 4"/></symbol>
+    <symbol id="i-loader" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" opacity=".25"/><path d="M21 12a9 9 0 0 0-9-9"/></symbol>
+  </defs>
+</svg>
+
 <div class="app">
 
   <!-- SIDEBAR -->
   <aside class="sidebar">
-    <div class="logo">🦺 Controle EPI</div>
+    <div class="logo">
+      <svg class="icon logo-icon"><use href="#i-shield"/></svg>
+      <span>Controle EPI</span>
+    </div>
+    <div class="hazard-rule" aria-hidden="true"></div>
     <nav>
-      <a href="#dashboard" class="nav-link" data-route="dashboard">📊 Dashboard</a>
-      <a href="#funcionarios" class="nav-link" data-route="funcionarios">👤 Funcionários</a>
-      <a href="#epis" class="nav-link" data-route="epis">🧤 Cadastro de EPI</a>
-      <a href="#entregas" class="nav-link" data-route="entregas">📦 Entregar / Renovar</a>
-      <a href="#analise" class="nav-link" data-route="analise">🔎 Análise / Exportar</a>
+      <a href="#dashboard" class="nav-link" data-route="dashboard"><svg class="icon"><use href="#i-grid"/></svg><span>Dashboard</span></a>
+      <a href="#funcionarios" class="nav-link" data-route="funcionarios"><svg class="icon"><use href="#i-person"/></svg><span>Funcionários</span></a>
+      <a href="#epis" class="nav-link" data-route="epis"><svg class="icon"><use href="#i-shield"/></svg><span>Cadastro de EPI</span></a>
+      <a href="#entregas" class="nav-link" data-route="entregas"><svg class="icon"><use href="#i-package"/></svg><span>Entregar / Renovar</span></a>
+      <a href="#analise" class="nav-link" data-route="analise"><svg class="icon"><use href="#i-bars"/></svg><span>Análise / Exportar</span></a>
     </nav>
   </aside>
 
@@ -30,27 +61,39 @@
       <h1>Dashboard</h1>
       <div class="cards">
         <div class="card danger">
-          <span class="card-num" id="dashVencidos">-</span>
-          <span class="card-label">EPIs vencidos</span>
+          <svg class="icon card-icon"><use href="#i-alert"/></svg>
+          <div class="card-text">
+            <span class="card-num" id="dashVencidos">-</span>
+            <span class="card-label">EPIs vencidos</span>
+          </div>
         </div>
         <div class="card warning">
-          <span class="card-num" id="dashAtencao">-</span>
-          <span class="card-label">Vencendo em 30 dias</span>
+          <svg class="icon card-icon"><use href="#i-clock"/></svg>
+          <div class="card-text">
+            <span class="card-num" id="dashAtencao">-</span>
+            <span class="card-label">Vencendo em 30 dias</span>
+          </div>
         </div>
         <div class="card success">
-          <span class="card-num" id="dashFuncionarios">-</span>
-          <span class="card-label">Funcionários cadastrados</span>
+          <svg class="icon card-icon"><use href="#i-person"/></svg>
+          <div class="card-text">
+            <span class="card-num" id="dashFuncionarios">-</span>
+            <span class="card-label">Funcionários cadastrados</span>
+          </div>
         </div>
         <div class="card info">
-          <span class="card-num" id="dashEpis">-</span>
-          <span class="card-label">Tipos de EPI cadastrados</span>
+          <svg class="icon card-icon"><use href="#i-shield"/></svg>
+          <div class="card-text">
+            <span class="card-num" id="dashEpis">-</span>
+            <span class="card-label">Tipos de EPI cadastrados</span>
+          </div>
         </div>
       </div>
 
       <h2>Alertas de vencimento</h2>
       <table class="tbl">
         <thead><tr><th>Funcionário</th><th>EPI</th><th>Registro (CA)</th><th>Vencimento</th><th>Situação</th></tr></thead>
-        <tbody id="dashAlertBody"><tr><td colspan="5" class="muted">Carregando...</td></tr></tbody>
+        <tbody id="dashAlertBody"><tr><td colspan="5" class="muted"><svg class="icon muted-icon spinner"><use href="#i-loader"/></svg>Carregando...</td></tr></tbody>
       </table>
     </section>
 
@@ -62,16 +105,18 @@
         <input type="text" id="funcNome" placeholder="Nome completo" required>
         <input type="text" id="funcCargo" placeholder="Cargo">
         <input type="text" id="funcMatricula" placeholder="Matrícula">
-        <input type="text" id="funcSetor" placeholder="Setor">
-        <button type="submit" class="btn primary">Salvar</button>
+        <button type="submit" class="btn primary"><svg class="icon"><use href="#i-plus"/></svg>Salvar</button>
         <button type="button" id="funcCancelar" class="btn ghost hidden">Cancelar</button>
       </form>
 
-      <input type="text" id="buscaFuncionario" class="search" placeholder="🔎 Buscar por nome, cargo, matrícula ou setor...">
+      <div class="search-wrap">
+        <svg class="icon search-icon"><use href="#i-search"/></svg>
+        <input type="text" id="buscaFuncionario" class="search" placeholder="Buscar por nome, cargo ou matrícula...">
+      </div>
 
       <table class="tbl">
-        <thead><tr><th>Nome</th><th>Cargo</th><th>Matrícula</th><th>Setor</th><th>Ações</th></tr></thead>
-        <tbody id="funcionariosBody"><tr><td colspan="5" class="muted">Carregando...</td></tr></tbody>
+        <thead><tr><th>Nome</th><th>Cargo</th><th>Matrícula</th><th>Ações</th></tr></thead>
+        <tbody id="funcionariosBody"><tr><td colspan="4" class="muted"><svg class="icon muted-icon spinner"><use href="#i-loader"/></svg>Carregando...</td></tr></tbody>
       </table>
     </section>
 
@@ -82,16 +127,19 @@
         <input type="hidden" id="epiId">
         <input type="text" id="epiNome" placeholder="Nome do EPI" required>
         <input type="text" id="epiRegistro" placeholder="Registro (CA)" required>
-        <input type="number" id="epiValidadeDias" placeholder="Validade (dias de uso)" required min="1">
-        <button type="submit" class="btn primary">Salvar</button>
+        <input type="number" id="epiValidadeDias" placeholder="Validade (meses de uso)" required min="1">
+        <button type="submit" class="btn primary"><svg class="icon"><use href="#i-plus"/></svg>Salvar</button>
         <button type="button" id="epiCancelar" class="btn ghost hidden">Cancelar</button>
       </form>
 
-      <input type="text" id="buscaEpi" class="search" placeholder="🔎 Buscar por nome ou registro (CA)...">
+      <div class="search-wrap">
+        <svg class="icon search-icon"><use href="#i-search"/></svg>
+        <input type="text" id="buscaEpi" class="search" placeholder="Buscar por nome ou registro (CA)...">
+      </div>
 
       <table class="tbl">
-        <thead><tr><th>Nome</th><th>Registro (CA)</th><th>Validade (dias)</th><th>Ações</th></tr></thead>
-        <tbody id="episBody"><tr><td colspan="4" class="muted">Carregando...</td></tr></tbody>
+        <thead><tr><th>Nome</th><th>Registro (CA)</th><th>Validade (meses)</th><th>Ações</th></tr></thead>
+        <tbody id="episBody"><tr><td colspan="4" class="muted"><svg class="icon muted-icon spinner"><use href="#i-loader"/></svg>Carregando...</td></tr></tbody>
       </table>
     </section>
 
@@ -101,51 +149,71 @@
       <form id="formEntrega" class="form-inline">
 
         <div class="combobox" id="comboFuncionario">
-          <input type="text" id="entFuncionarioInput" class="combo-input" placeholder="🔎 Buscar funcionário..." autocomplete="off" required>
+          <svg class="icon combo-icon"><use href="#i-search"/></svg>
+          <input type="text" id="entFuncionarioInput" class="combo-input" placeholder="Buscar funcionário..." autocomplete="off" required>
           <input type="hidden" id="entFuncionario">
-          <button type="button" class="combo-clear hidden" id="entFuncionarioClear" title="Limpar">✕</button>
+          <button type="button" class="combo-clear hidden" id="entFuncionarioClear" title="Limpar"><svg class="icon"><use href="#i-x"/></svg></button>
           <div class="combobox-list hidden" id="entFuncionarioList"></div>
         </div>
 
         <div class="combobox" id="comboEpi">
-          <input type="text" id="entEpiInput" class="combo-input" placeholder="🔎 Buscar EPI..." autocomplete="off" required>
+          <svg class="icon combo-icon"><use href="#i-search"/></svg>
+          <input type="text" id="entEpiInput" class="combo-input" placeholder="Buscar EPI..." autocomplete="off" required>
           <input type="hidden" id="entEpi">
-          <button type="button" class="combo-clear hidden" id="entEpiClear" title="Limpar">✕</button>
+          <button type="button" class="combo-clear hidden" id="entEpiClear" title="Limpar"><svg class="icon"><use href="#i-x"/></svg></button>
           <div class="combobox-list hidden" id="entEpiList"></div>
         </div>
 
         <input type="date" id="entData" required>
-        <button type="submit" class="btn primary">Entregar EPI</button>
+        <button type="submit" class="btn primary"><svg class="icon"><use href="#i-package"/></svg>Entregar EPI</button>
       </form>
 
-      <input type="text" id="buscaEntrega" class="search" placeholder="🔎 Buscar por funcionário, EPI ou registro...">
+      <div class="search-wrap">
+        <svg class="icon search-icon"><use href="#i-search"/></svg>
+        <input type="text" id="buscaEntrega" class="search" placeholder="Buscar por funcionário, EPI ou registro...">
+      </div>
 
       <table class="tbl">
         <thead><tr><th>Funcionário</th><th>EPI</th><th>Registro</th><th>Entrega</th><th>Vencimento</th><th>Dias restantes</th><th>Situação</th><th>Ações</th></tr></thead>
-        <tbody id="entregasBody"><tr><td colspan="8" class="muted">Carregando...</td></tr></tbody>
+        <tbody id="entregasBody"><tr><td colspan="8" class="muted"><svg class="icon muted-icon spinner"><use href="#i-loader"/></svg>Carregando...</td></tr></tbody>
       </table>
     </section>
 
     <!-- ANÁLISE / EXPORTAR -->
     <section id="sec-analise" class="page hidden">
-      <h1>Análise Geral</h1>
-      <input type="text" id="buscaAnalise" class="search" placeholder="🔎 Buscar por funcionário, EPI ou registro...">
+      <h1>Análise geral</h1>
+      <div class="search-wrap">
+        <svg class="icon search-icon"><use href="#i-search"/></svg>
+        <input type="text" id="buscaAnalise" class="search" placeholder="Buscar por funcionário, EPI ou registro...">
+      </div>
 
       <table class="tbl">
         <thead><tr><th>Funcionário</th><th>EPI</th><th>Registro</th><th>Entrega</th><th>Vencimento</th><th>Dias restantes</th><th>Situação</th></tr></thead>
-        <tbody id="analiseBody"><tr><td colspan="7" class="muted">Carregando...</td></tr></tbody>
+        <tbody id="analiseBody"><tr><td colspan="7" class="muted"><svg class="icon muted-icon spinner"><use href="#i-loader"/></svg>Carregando...</td></tr></tbody>
       </table>
 
       <div class="export-box">
-        <h2>Exportar ficha (PDF para impressão)</h2>
+        <h2><svg class="icon"><use href="#i-printer"/></svg>Exportar ficha (PDF para impressão)</h2>
+        <p class="export-hint">Escolha o que sai na impressão, na hora de gerar:</p>
+        <div class="segmented" id="exportModoGroup">
+          <label class="segmented-option">
+            <input type="radio" name="exportModo" id="modoTodos" value="todos" checked>
+            <span><svg class="icon"><use href="#i-person"/></svg>Todos os funcionários</span>
+          </label>
+          <label class="segmented-option">
+            <input type="radio" name="exportModo" id="modoUm" value="um">
+            <span><svg class="icon"><use href="#i-file"/></svg>Um funcionário</span>
+          </label>
+        </div>
         <div class="form-inline">
-          <div class="combobox" id="comboExport">
-            <input type="text" id="exportFuncionarioInput" class="combo-input" placeholder="🔎 Todos os funcionários (ou busque um específico)..." autocomplete="off">
+          <div class="combobox is-disabled" id="comboExport">
+            <svg class="icon combo-icon"><use href="#i-search"/></svg>
+            <input type="text" id="exportFuncionarioInput" class="combo-input" placeholder="Buscar funcionário..." autocomplete="off" disabled>
             <input type="hidden" id="exportFuncionario" value="todos">
-            <button type="button" class="combo-clear hidden" id="exportFuncionarioClear" title="Limpar">✕</button>
+            <button type="button" class="combo-clear hidden" id="exportFuncionarioClear" title="Limpar"><svg class="icon"><use href="#i-x"/></svg></button>
             <div class="combobox-list hidden" id="exportFuncionarioList"></div>
           </div>
-          <button id="btnExportar" class="btn primary">🖨️ Gerar e Imprimir Ficha</button>
+          <button id="btnExportar" class="btn primary"><svg class="icon"><use href="#i-printer"/></svg>Gerar e imprimir ficha</button>
         </div>
       </div>
     </section>
@@ -156,7 +224,7 @@
 <!-- MODAL FICHA DO FUNCIONÁRIO -->
 <div id="modalFuncionario" class="modal hidden">
   <div class="modal-box">
-    <button id="modalFechar" class="btn ghost close-btn">✕</button>
+    <button id="modalFechar" class="btn ghost close-btn"><svg class="icon"><use href="#i-x"/></svg></button>
     <div id="modalConteudo"></div>
   </div>
 </div>

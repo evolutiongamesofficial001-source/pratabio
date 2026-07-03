@@ -208,14 +208,34 @@ h2 .icon{width:16px;height:16px;color:var(--brand);}
   display:block;
   position:fixed;
   top:0;
-  left:-10000px;
+  left:0;
   width:794px;
   background:#fff;
   padding:26px 30px;
   font-family:var(--font-body);
   color:#1a232c;
-  z-index:-1;
+  z-index:9998; /* fica visível para o html2canvas conseguir renderizar o conteúdo de verdade */
 }
+
+/* Overlay que cobre a tela enquanto o PDF é gerado, escondendo o printArea do usuário
+   sem precisar tirá-lo da viewport (posicionar fora da tela deixava a captura instável). */
+#pdfOverlay{
+  position:fixed;
+  inset:0;
+  background:var(--canvas);
+  z-index:9999;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:12px;
+  color:var(--ink-soft);
+  font-family:var(--font-body);
+  font-weight:600;
+  font-size:14px;
+}
+#pdfOverlay.hidden{display:none;}
+#pdfOverlay .icon{width:26px;height:26px;color:var(--brand);}
 
 #printArea .doc-header{margin-bottom:20px;}
 #printArea .doc-title{display:flex;align-items:center;gap:10px;}

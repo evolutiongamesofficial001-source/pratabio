@@ -728,7 +728,10 @@ function renderEntregas(data) {
         <td>${formatBR(e.dataVencimento)}</td>
         <td>${diasRestantes(e.dataVencimento)}</td>
         <td><span class="badge ${sit.cls}">${sit.label}</span></td>
-        <td><button class="btn small renovar" onclick="renovarEntrega('${id}')"><svg class="icon"><use href="#i-refresh"/></svg>Renovar</button></td>
+        <td>
+          <button class="btn small renovar" onclick="renovarEntrega('${id}')"><svg class="icon"><use href="#i-refresh"/></svg>Renovar</button>
+          <button class="btn small delete" onclick="excluirEntrega('${id}')"><svg class="icon"><use href="#i-trash"/></svg>Excluir</button>
+        </td>
       </tr>`;
     })
     .join("");
@@ -818,6 +821,26 @@ async function renovarEntrega(id) {
   const novaQtd = estoqueAtual - 1;
   await dbPatch(`epis/${e.epiId}`, { quantidade: novaQtd });
   episCache[e.epiId] = { ...epi, quantidade: novaQtd };
+
+  loadEntregasPage();
+}
+
+/* Exclui um registro de entrega. Como a entrega tinha baixado 1 unidade do estoque
+   na hora de ser feita, ao excluir devolvemos essa unidade automaticamente. */
+async function excluirEntrega(id) {
+  const e = entregasCache[id];
+  if (!e) return;
+
+  if (!confirm(`Excluir o registro de entrega de "${e.epiNome}" para ${e.funcionarioNome}?\n\n1 unidade será devolvida ao estoque desse EPI. Esta ação não pode ser desfeita.`)) return;
+
+  await dbDelete(`entregas/${id}`);
+
+  const epi = episCache[e.epiId] || (await dbGet(`epis/${e.epiId}`));
+  if (epi) {
+    const novaQtd = Number(epi.quantidade ?? 0) + 1;
+    await dbPatch(`epis/${e.epiId}`, { quantidade: novaQtd });
+    episCache[e.epiId] = { ...epi, quantidade: novaQtd };
+  }
 
   loadEntregasPage();
 }
@@ -934,11 +957,15 @@ document.getElementById("btnExportar").addEventListener("click", (e) => {
 
 /* ====================== GERAÇÃO DE PDF REAL ======================
    Usa html2pdf.js (html2canvas + jsPDF) para gerar um arquivo .pdf de verdade,
-   que é baixado diretamente — não depende mais da caixa de diálogo de impressão
-   do navegador. A área de impressão é temporariamente exibida fora da tela
-   (classe .pdf-render) só para o html2canvas conseguir capturá-la. */
+   que é baixado diretamente. O html2canvas só consegue capturar corretamente
+   conteúdo que está de fato "pintado" na tela — por isso o printArea fica
+   visível (na posição 0,0), mas coberto por um overlay opaco (#pdfOverlay)
+   para o usuário não ver o flash de conteúdo. Também esperamos as fontes
+   carregarem antes de tirar a "foto", senão o texto sai com a fonte padrão
+   do navegador (ou até em branco em alguns casos).*/
 async function exportarFicha(alvoId, botaoOrigem) {
   const printArea = document.getElementById("printArea");
+  const overlay = document.getElementById("pdfOverlay");
   const dataGeracao = formatBR(todayISO());
 
   const textoOriginal = botaoOrigem ? botaoOrigem.innerHTML : null;
@@ -948,39 +975,73 @@ async function exportarFicha(alvoId, botaoOrigem) {
   }
 
   let nomeArquivo = `ficha-epi-${todayISO()}.pdf`;
+  document.body.style.overflow = "hidden";
+  overlay.classList.remove("hidden");
 
   try {
+    let conteudoHtml;
     if (alvoId && alvoId !== "todos") {
       const [funcionario, entregas] = await Promise.all([
         dbGet(`funcionarios/${alvoId}`),
         dbGet("entregas", qEqual("funcionarioId", alvoId)),
       ]);
-      printArea.innerHTML = montarCabecalhoDoc("Ficha de EPI", dataGeracao) + montarBlocoFicha(funcionario, entregas);
+      if (!funcionario || !funcionario.nome) {
+        throw new Error("Funcionário não encontrado.");
+      }
+      conteudoHtml = montarCabecalhoDoc("Ficha de EPI", dataGeracao) + montarBlocoFicha(funcionario, entregas);
       const slug = normaliza(funcionario.nome || "funcionario").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
       nomeArquivo = `ficha-epi-${slug || "funcionario"}-${todayISO()}.pdf`;
     } else {
       const [funcionarios, entregas] = await Promise.all([dbGet("funcionarios"), dbGet("entregas")]);
-      const blocos = Object.entries(funcionarios)
-        .sort((a, b) => (a[1].nome || "").localeCompare(b[1].nome || "", "pt-BR"))
+      const nomes = Object.entries(funcionarios).sort((a, b) => (a[1].nome || "").localeCompare(b[1].nome || "", "pt-BR"));
+      if (nomes.length === 0) {
+        throw new Error("Nenhum funcionário cadastrado ainda.");
+      }
+      const blocos = nomes
         .map(([id, f]) => {
           const entregasFunc = Object.fromEntries(Object.entries(entregas).filter(([eid, e]) => e.funcionarioId === id));
           return montarBlocoFicha(f, entregasFunc);
         })
         .join("");
-      printArea.innerHTML = montarCabecalhoDoc("Ficha geral de EPIs — todos os funcionários", dataGeracao) + blocos;
+      conteudoHtml = montarCabecalhoDoc("Ficha geral de EPIs — todos os funcionários", dataGeracao) + blocos;
       nomeArquivo = `ficha-geral-epi-${todayISO()}.pdf`;
     }
 
-    // exibe fora da tela para o html2canvas capturar o conteúdo real (com fontes/estilos aplicados)
+    printArea.innerHTML = conteudoHtml;
     printArea.classList.add("pdf-render");
+
+    // garante que fontes (Space Grotesk / Inter / JetBrains Mono) e o layout
+    // já estão totalmente carregados/aplicados antes de capturar o conteúdo
+    if (document.fonts && document.fonts.ready) {
+      await document.fonts.ready;
+    }
     await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    await new Promise((r) => setTimeout(r, 150));
 
     await html2pdf()
       .set({
         margin: [10, 10, 12, 10],
         filename: nomeArquivo,
         image: { type: "jpeg", quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff" },
+        html2canvas: {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: "#ffffff",
+          windowWidth: printArea.scrollWidth,
+          // o overlay cobre a tela só visualmente para o usuário; ele precisa ser
+          // removido do DOM clonado que o html2canvas realmente fotografa, senão
+          // acaba sendo capturado por cima do conteúdo (PDF saindo em branco).
+          onclone: (clonedDoc) => {
+            const ov = clonedDoc.getElementById("pdfOverlay");
+            if (ov) ov.remove();
+            const area = clonedDoc.getElementById("printArea");
+            if (area) {
+              area.style.position = "static";
+              area.style.left = "0";
+              area.style.zIndex = "auto";
+            }
+          },
+        },
         jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
         pagebreak: { mode: ["css", "avoid-all"] },
       })
@@ -988,10 +1049,12 @@ async function exportarFicha(alvoId, botaoOrigem) {
       .save();
   } catch (err) {
     console.error(err);
-    alert("Não foi possível gerar o PDF. Tente novamente.");
+    alert("Não foi possível gerar o PDF: " + (err.message || "tente novamente."));
   } finally {
     printArea.classList.remove("pdf-render");
     printArea.innerHTML = "";
+    overlay.classList.add("hidden");
+    document.body.style.overflow = "";
     if (botaoOrigem) {
       botaoOrigem.disabled = false;
       botaoOrigem.innerHTML = textoOriginal;

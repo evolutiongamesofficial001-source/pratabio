@@ -27,6 +27,9 @@ function qEqual(field, value) {
   return `?orderBy=${encodeURIComponent('"' + field + '"')}&equalTo=${encodeURIComponent('"' + value + '"')}`;
 }
 
+/* Estoque considerado "baixo" a partir deste limite (inclusive) */
+const ESTOQUE_BAIXO_LIMITE = 5;
+
 /* ====================== HELPERS DE DATA ====================== */
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -57,6 +60,11 @@ function situacao(vencISO) {
   if (dias <= 30) return { label: `${dias} dia(s)`, cls: "atencao" };
   return { label: `${dias} dias`, cls: "ok" };
 }
+function situacaoEstoque(qtd) {
+  if (qtd <= 0) return { label: "Sem estoque", cls: "estoque-zerado" };
+  if (qtd <= ESTOQUE_BAIXO_LIMITE) return { label: `${qtd} un. (baixo)`, cls: "estoque-baixo" };
+  return { label: `${qtd} un.`, cls: "estoque-ok" };
+}
 function esc(str) {
   return (str || "").toString().replace(/[<>&"]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }[c]));
 }
@@ -69,10 +77,28 @@ function normaliza(str) {
     .toLowerCase();
 }
 
+/* ====================== TRANSIÇÃO SUAVE AO TROCAR CONTEÚDO DE UMA TABELA ======================
+   Em vez de trocar o innerHTML de forma abrupta, faz um fade/slide curto para fora,
+   troca o conteúdo, e faz o fade/slide de volta — deixa filtros e recarregamentos fluidos. */
+function atualizarCorpoTabela(el, html) {
+  if (!el) return;
+  el.style.transition = `opacity .18s var(--ease-fluid, ease), transform .18s var(--ease-fluid, ease)`;
+  el.style.opacity = "0";
+  el.style.transform = "translateY(3px)";
+  setTimeout(() => {
+    el.innerHTML = html;
+    requestAnimationFrame(() => {
+      el.style.transition = `opacity .28s var(--ease-fluid, ease), transform .28s var(--ease-fluid, ease)`;
+      el.style.opacity = "1";
+      el.style.transform = "translateY(0)";
+    });
+  }, 130);
+}
+
 /* ====================== COMBOBOX (busca com autocomplete) ======================
    Componente genérico usado nos campos de "Funcionário" e "EPI" das telas de
-   Entregar/Renovar e Exportar. Em vez de um <select> comum, o usuário digita
-   e vê sugestões filtradas em tempo real, podendo navegar com o teclado.
+   Entregar/Renovar, Exportar e Movimentar estoque. Em vez de um <select> comum,
+   o usuário digita e vê sugestões filtradas em tempo real, podendo navegar com o teclado.
 */
 function criarCombobox({ inputId, hiddenId, listId, clearId, getData, renderMain, renderSub, matchFields, onSelect, onClear }) {
   const input = document.getElementById(inputId);
@@ -227,7 +253,6 @@ function criarCombobox({ inputId, hiddenId, listId, clearId, getData, renderMain
 
 /* ====================== ROTEAMENTO ====================== */
 const routes = ["dashboard", "funcionarios", "epis", "entregas", "analise"];
-const loaded = {}; // cache simples por seção
 
 function router() {
   let hash = location.hash.replace("#", "") || "dashboard";
@@ -257,48 +282,84 @@ window.addEventListener("DOMContentLoaded", () => {
   router();
 });
 
-/* ====================== DASHBOARD ====================== */
+/* ====================== DASHBOARD ======================
+   Reescrito para não depender de queries filtradas (orderBy/endAt) do Firebase,
+   que exigem regra de índice (.indexOn) configurada e podiam falhar silenciosamente
+   ou deixar o painel com números errados/vazios. Agora busca tudo de uma vez e
+   calcula localmente — mais simples e confiável. */
 async function loadDashboard() {
-  const body = document.getElementById("dashAlertBody");
-  body.innerHTML = `<tr><td colspan="5" class="muted"><svg class="icon muted-icon spinner"><use href="#i-loader"/></svg>Carregando...</td></tr>`;
+  const alertBody = document.getElementById("dashAlertBody");
+  const estoqueBody = document.getElementById("dashEstoqueBody");
+  alertBody.innerHTML = `<tr><td colspan="5" class="muted"><svg class="icon muted-icon spinner"><use href="#i-loader"/></svg>Carregando...</td></tr>`;
+  estoqueBody.innerHTML = `<tr><td colspan="3" class="muted"><svg class="icon muted-icon spinner"><use href="#i-loader"/></svg>Carregando...</td></tr>`;
 
-  const limite = addDaysISO(todayISO(), 30);
-
-  const [entregasRange, funcionarios, epis] = await Promise.all([
-    dbGet("entregas", `?orderBy=${encodeURIComponent('"dataVencimento"')}&endAt=${encodeURIComponent('"' + limite + '"')}`),
-    dbGet("funcionarios"),
-    dbGet("epis"),
-  ]);
+  let entregas, funcionarios, epis;
+  try {
+    [entregas, funcionarios, epis] = await Promise.all([dbGet("entregas"), dbGet("funcionarios"), dbGet("epis")]);
+  } catch (err) {
+    alertBody.innerHTML = `<tr><td colspan="5" class="muted">Não foi possível carregar os dados. Verifique sua conexão e tente novamente.</td></tr>`;
+    estoqueBody.innerHTML = `<tr><td colspan="3" class="muted">Não foi possível carregar os dados.</td></tr>`;
+    return;
+  }
 
   document.getElementById("dashFuncionarios").textContent = Object.keys(funcionarios).length;
   document.getElementById("dashEpis").textContent = Object.keys(epis).length;
 
-  const lista = Object.entries(entregasRange).filter(([id, e]) => e.status === "ativo");
-  const vencidos = lista.filter(([id, e]) => diasRestantes(e.dataVencimento) < 0);
-  const atencao = lista.filter(([id, e]) => diasRestantes(e.dataVencimento) >= 0);
+  // ---- alertas de vencimento (todas as entregas ativas, vencidas ou a vencer em até 30 dias) ----
+  const ativos = Object.entries(entregas).filter(([id, e]) => e && e.status === "ativo" && e.dataVencimento);
+  const vencidos = ativos.filter(([id, e]) => diasRestantes(e.dataVencimento) < 0);
+  const atencao = ativos.filter(([id, e]) => {
+    const d = diasRestantes(e.dataVencimento);
+    return d >= 0 && d <= 30;
+  });
 
   document.getElementById("dashVencidos").textContent = vencidos.length;
   document.getElementById("dashAtencao").textContent = atencao.length;
 
-  const todos = [...vencidos, ...atencao].sort((a, b) => diasRestantes(a[1].dataVencimento) - diasRestantes(b[1].dataVencimento));
+  const todosAlertas = [...vencidos, ...atencao].sort(
+    (a, b) => diasRestantes(a[1].dataVencimento) - diasRestantes(b[1].dataVencimento)
+  );
 
-  if (todos.length === 0) {
-    body.innerHTML = `<tr><td colspan="5" class="muted"><svg class="icon muted-icon"><use href="#i-check"/></svg>Nenhum alerta de vencimento</td></tr>`;
-    return;
+  if (todosAlertas.length === 0) {
+    atualizarCorpoTabela(alertBody, `<tr><td colspan="5" class="muted"><svg class="icon muted-icon"><use href="#i-check"/></svg>Nenhum alerta de vencimento</td></tr>`);
+  } else {
+    const html = todosAlertas
+      .map(([id, e], i) => {
+        const sit = situacao(e.dataVencimento);
+        return `<tr style="animation-delay:${Math.min(i, 12) * 30}ms">
+          <td>${esc(e.funcionarioNome)}</td>
+          <td>${esc(e.epiNome)}</td>
+          <td>${esc(e.epiRegistro)}</td>
+          <td>${formatBR(e.dataVencimento)}</td>
+          <td><span class="badge ${sit.cls}">${sit.label}</span></td>
+        </tr>`;
+      })
+      .join("");
+    atualizarCorpoTabela(alertBody, html);
   }
 
-  body.innerHTML = todos
-    .map(([id, e], i) => {
-      const sit = situacao(e.dataVencimento);
-      return `<tr style="animation-delay:${Math.min(i, 12) * 30}ms">
-        <td>${esc(e.funcionarioNome)}</td>
-        <td>${esc(e.epiNome)}</td>
-        <td>${esc(e.epiRegistro)}</td>
-        <td>${formatBR(e.dataVencimento)}</td>
-        <td><span class="badge ${sit.cls}">${sit.label}</span></td>
-      </tr>`;
-    })
-    .join("");
+  // ---- estoque baixo ----
+  const episBaixo = Object.entries(epis)
+    .filter(([id, ep]) => Number(ep.quantidade ?? 0) <= ESTOQUE_BAIXO_LIMITE)
+    .sort((a, b) => Number(a[1].quantidade ?? 0) - Number(b[1].quantidade ?? 0));
+
+  document.getElementById("dashEstoqueBaixo").textContent = episBaixo.length;
+
+  if (episBaixo.length === 0) {
+    atualizarCorpoTabela(estoqueBody, `<tr><td colspan="3" class="muted"><svg class="icon muted-icon"><use href="#i-check"/></svg>Nenhum EPI com estoque baixo</td></tr>`);
+  } else {
+    const html = episBaixo
+      .map(([id, ep], i) => {
+        const sit = situacaoEstoque(Number(ep.quantidade ?? 0));
+        return `<tr style="animation-delay:${Math.min(i, 12) * 30}ms">
+          <td>${esc(ep.nome)}</td>
+          <td>${esc(ep.registro)}</td>
+          <td><span class="badge ${sit.cls}">${sit.label}</span></td>
+        </tr>`;
+      })
+      .join("");
+    atualizarCorpoTabela(estoqueBody, html);
+  }
 }
 
 /* ====================== FUNCIONÁRIOS ====================== */
@@ -315,10 +376,10 @@ function renderFuncionarios(data) {
   const body = document.getElementById("funcionariosBody");
   const entries = Object.entries(data);
   if (entries.length === 0) {
-    body.innerHTML = `<tr><td colspan="4" class="muted">Nenhum funcionário cadastrado</td></tr>`;
+    atualizarCorpoTabela(body, `<tr><td colspan="4" class="muted">Nenhum funcionário cadastrado</td></tr>`);
     return;
   }
-  body.innerHTML = entries
+  const html = entries
     .map(
       ([id, f], i) => `<tr style="animation-delay:${Math.min(i, 12) * 30}ms">
       <td>${esc(f.nome)}</td>
@@ -332,6 +393,7 @@ function renderFuncionarios(data) {
     </tr>`
     )
     .join("");
+  atualizarCorpoTabela(body, html);
 }
 
 document.getElementById("formFuncionario").addEventListener("submit", async (e) => {
@@ -361,7 +423,7 @@ function editarFuncionario(id) {
   document.getElementById("funcCargo").value = f.cargo || "";
   document.getElementById("funcMatricula").value = f.matricula || "";
   document.getElementById("funcCancelar").classList.remove("hidden");
-  window.scrollTo(0, 0);
+  window.scrollTo({ top: 0, behavior: "smooth" });
 }
 document.getElementById("funcCancelar").addEventListener("click", () => {
   document.getElementById("formFuncionario").reset();
@@ -428,44 +490,65 @@ async function abrirFichaFuncionario(id) {
       </tbody>
     </table>
     <div style="margin-top:16px;text-align:right;">
-      <button class="btn primary" onclick="exportarFicha('${id}')"><svg class="icon"><use href="#i-printer"/></svg>Imprimir ficha</button>
+      <button class="btn primary" id="btnImprimirFicha"><svg class="icon"><use href="#i-printer"/></svg>Gerar PDF</button>
     </div>
   `;
+  document.getElementById("btnImprimirFicha").addEventListener("click", (e) => exportarFicha(id, e.currentTarget));
 }
 document.getElementById("modalFechar").addEventListener("click", () => {
   document.getElementById("modalFuncionario").classList.add("hidden");
 });
 
-/* ====================== EPIs ====================== */
+/* ====================== EPIs (cadastro + estoque) ====================== */
 let episCache = {};
+let comboEstoque;
 
 async function loadEpis() {
   const body = document.getElementById("episBody");
-  body.innerHTML = `<tr><td colspan="4" class="muted"><svg class="icon muted-icon spinner"><use href="#i-loader"/></svg>Carregando...</td></tr>`;
+  body.innerHTML = `<tr><td colspan="5" class="muted"><svg class="icon muted-icon spinner"><use href="#i-loader"/></svg>Carregando...</td></tr>`;
   episCache = await dbGet("epis");
   renderEpis(episCache);
+
+  if (!comboEstoque) {
+    comboEstoque = criarCombobox({
+      inputId: "estEpiInput",
+      hiddenId: "estEpi",
+      listId: "estEpiList",
+      clearId: "estEpiClear",
+      getData: () => episCache,
+      renderMain: (ep) => ep.nome,
+      renderSub: (ep) => `CA ${ep.registro} · estoque atual: ${Number(ep.quantidade ?? 0)} un.`,
+      matchFields: (ep) => [ep.nome, ep.registro],
+    });
+  } else {
+    comboEstoque.refresh();
+  }
 }
 
 function renderEpis(data) {
   const body = document.getElementById("episBody");
   const entries = Object.entries(data);
   if (entries.length === 0) {
-    body.innerHTML = `<tr><td colspan="4" class="muted">Nenhum EPI cadastrado</td></tr>`;
+    atualizarCorpoTabela(body, `<tr><td colspan="5" class="muted">Nenhum EPI cadastrado</td></tr>`);
     return;
   }
-  body.innerHTML = entries
-    .map(
-      ([id, ep], i) => `<tr style="animation-delay:${Math.min(i, 12) * 30}ms">
+  const html = entries
+    .map(([id, ep], i) => {
+      const qtd = Number(ep.quantidade ?? 0);
+      const sit = situacaoEstoque(qtd);
+      return `<tr style="animation-delay:${Math.min(i, 12) * 30}ms">
       <td>${esc(ep.nome)}</td>
       <td>${esc(ep.registro)}</td>
       <td>${esc(ep.validadeMeses)} meses</td>
+      <td><span class="badge ${sit.cls}">${sit.label}</span></td>
       <td>
         <button class="btn small edit" onclick="editarEpi('${id}')"><svg class="icon"><use href="#i-pencil"/></svg>Editar</button>
         <button class="btn small delete" onclick="excluirEpi('${id}')"><svg class="icon"><use href="#i-trash"/></svg>Excluir</button>
       </td>
-    </tr>`
-    )
+    </tr>`;
+    })
     .join("");
+  atualizarCorpoTabela(body, html);
 }
 
 document.getElementById("formEpi").addEventListener("submit", async (e) => {
@@ -475,6 +558,7 @@ document.getElementById("formEpi").addEventListener("submit", async (e) => {
     nome: document.getElementById("epiNome").value.trim(),
     registro: document.getElementById("epiRegistro").value.trim(),
     validadeMeses: Number(document.getElementById("epiValidadeDias").value),
+    quantidade: Number(document.getElementById("epiQuantidade").value),
     dataCadastro: id ? episCache[id]?.dataCadastro || todayISO() : todayISO(),
   };
   if (id) {
@@ -494,8 +578,9 @@ function editarEpi(id) {
   document.getElementById("epiNome").value = ep.nome || "";
   document.getElementById("epiRegistro").value = ep.registro || "";
   document.getElementById("epiValidadeDias").value = ep.validadeMeses || "";
+  document.getElementById("epiQuantidade").value = Number(ep.quantidade ?? 0);
   document.getElementById("epiCancelar").classList.remove("hidden");
-  window.scrollTo(0, 0);
+  window.scrollTo({ top: 0, behavior: "smooth" });
 }
 document.getElementById("epiCancelar").addEventListener("click", () => {
   document.getElementById("formEpi").reset();
@@ -504,7 +589,7 @@ document.getElementById("epiCancelar").addEventListener("click", () => {
 });
 
 async function excluirEpi(id) {
-  if (!confirm("Excluir este tipo de EPI?")) return;
+  if (!confirm("Excluir este tipo de EPI? O histórico de entregas já feitas não será apagado.")) return;
   await dbDelete(`epis/${id}`);
   loadEpis();
 }
@@ -517,6 +602,61 @@ document.getElementById("buscaEpi").addEventListener("input", (e) => {
     )
   );
   renderEpis(filtrado);
+});
+
+/* ---- Movimentar estoque (entrada / saída manual) ---- */
+const formEstoque = document.getElementById("formEstoque");
+const estFeedback = document.getElementById("estFeedback");
+
+function mostrarFeedbackEstoque(msg, tipo) {
+  estFeedback.textContent = msg;
+  estFeedback.className = `stock-feedback ${tipo}`;
+  estFeedback.classList.remove("hidden");
+  void estFeedback.offsetWidth;
+  estFeedback.classList.add(tipo === "erro" ? "shake" : "");
+  clearTimeout(mostrarFeedbackEstoque._t);
+  mostrarFeedbackEstoque._t = setTimeout(() => estFeedback.classList.add("hidden"), 4000);
+}
+
+formEstoque.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const epiId = document.getElementById("estEpi").value;
+  const epi = episCache[epiId];
+  const movimento = document.querySelector('input[name="estMovimento"]:checked').value;
+  const qtdMovimento = Number(document.getElementById("estQuantidade").value);
+
+  if (!epi) {
+    mostrarFeedbackEstoque("Busque e selecione um EPI válido na lista antes de aplicar.", "erro");
+    document.getElementById("estEpiInput").focus();
+    return;
+  }
+  if (!qtdMovimento || qtdMovimento <= 0) {
+    mostrarFeedbackEstoque("Informe uma quantidade maior que zero.", "erro");
+    return;
+  }
+
+  const atual = Number(epi.quantidade ?? 0);
+  const nova = movimento === "entrada" ? atual + qtdMovimento : atual - qtdMovimento;
+
+  if (nova < 0) {
+    mostrarFeedbackEstoque(`Estoque insuficiente: há apenas ${atual} unidade(s) de "${epi.nome}".`, "erro");
+    return;
+  }
+
+  await dbPatch(`epis/${epiId}`, { quantidade: nova });
+  episCache[epiId] = { ...epi, quantidade: nova };
+
+  mostrarFeedbackEstoque(
+    movimento === "entrada"
+      ? `Entrada registrada: ${epi.nome} agora tem ${nova} unidade(s) em estoque.`
+      : `Saída registrada: ${epi.nome} agora tem ${nova} unidade(s) em estoque.`,
+    "ok"
+  );
+
+  formEstoque.reset();
+  document.getElementById("movEntrada").checked = true;
+  comboEstoque.limpar();
+  renderEpis(episCache);
 });
 
 /* ====================== ENTREGAS / RENOVAÇÃO ====================== */
@@ -560,9 +700,11 @@ async function loadEntregasPage() {
       clearId: "entEpiClear",
       getData: () => episCache,
       renderMain: (ep) => ep.nome,
-      renderSub: (ep) => `CA ${ep.registro} · validade ${ep.validadeMeses} meses`,
+      renderSub: (ep) => `CA ${ep.registro} · estoque: ${Number(ep.quantidade ?? 0)} un.`,
       matchFields: (ep) => [ep.nome, ep.registro],
     });
+  } else {
+    comboEpiEntrega.refresh();
   }
 
   renderEntregas(entregasCache);
@@ -572,10 +714,10 @@ function renderEntregas(data) {
   const body = document.getElementById("entregasBody");
   const entries = Object.entries(data).sort((a, b) => (a[1].dataVencimento < b[1].dataVencimento ? -1 : 1));
   if (entries.length === 0) {
-    body.innerHTML = `<tr><td colspan="8" class="muted">Nenhuma entrega registrada</td></tr>`;
+    atualizarCorpoTabela(body, `<tr><td colspan="8" class="muted">Nenhuma entrega registrada</td></tr>`);
     return;
   }
-  body.innerHTML = entries
+  const html = entries
     .map(([id, e], i) => {
       const sit = situacao(e.dataVencimento);
       return `<tr style="animation-delay:${Math.min(i, 12) * 30}ms">
@@ -590,6 +732,7 @@ function renderEntregas(data) {
       </tr>`;
     })
     .join("");
+  atualizarCorpoTabela(body, html);
 }
 
 document.getElementById("formEntrega").addEventListener("submit", async (e) => {
@@ -612,6 +755,12 @@ document.getElementById("formEntrega").addEventListener("submit", async (e) => {
     return;
   }
 
+  const estoqueAtual = Number(epi.quantidade ?? 0);
+  if (estoqueAtual <= 0) {
+    alert(`Não há estoque de "${epi.nome}" para entregar. Registre uma entrada em Cadastro de EPI → Movimentar estoque.`);
+    return;
+  }
+
   const dataVencimento = addMonthsISO(dataEntrega, epi.validadeMeses);
 
   const dados = {
@@ -627,6 +776,12 @@ document.getElementById("formEntrega").addEventListener("submit", async (e) => {
   };
 
   await dbPost("entregas", dados);
+
+  // baixa automática no estoque ao distribuir o EPI
+  const novaQtd = estoqueAtual - 1;
+  await dbPatch(`epis/${epiId}`, { quantidade: novaQtd });
+  episCache[epiId] = { ...epi, quantidade: novaQtd };
+
   document.getElementById("formEntrega").reset();
   document.getElementById("entData").value = todayISO();
   comboFuncionarioEntrega.limpar();
@@ -637,9 +792,16 @@ document.getElementById("formEntrega").addEventListener("submit", async (e) => {
 async function renovarEntrega(id) {
   const e = entregasCache[id];
   if (!e) return;
-  if (!confirm(`Renovar entrega de "${e.epiNome}" para ${e.funcionarioNome}?`)) return;
 
   const epi = episCache[e.epiId] || (await dbGet(`epis/${e.epiId}`));
+  const estoqueAtual = Number(epi.quantidade ?? 0);
+
+  if (estoqueAtual <= 0) {
+    alert(`Não há estoque de "${e.epiNome}" para renovar esta entrega. Registre uma entrada em Cadastro de EPI → Movimentar estoque.`);
+    return;
+  }
+  if (!confirm(`Renovar entrega de "${e.epiNome}" para ${e.funcionarioNome}? Isso vai baixar 1 unidade do estoque (restam ${estoqueAtual}).`)) return;
+
   const novaEntrega = todayISO();
   const novoVencimento = addMonthsISO(novaEntrega, epi.validadeMeses);
 
@@ -652,6 +814,10 @@ async function renovarEntrega(id) {
     status: "ativo",
     historico,
   });
+
+  const novaQtd = estoqueAtual - 1;
+  await dbPatch(`epis/${e.epiId}`, { quantidade: novaQtd });
+  episCache[e.epiId] = { ...epi, quantidade: novaQtd };
 
   loadEntregasPage();
 }
@@ -670,7 +836,7 @@ document.getElementById("buscaEntrega").addEventListener("input", (e) => {
 let analiseCache = {};
 let comboFuncionarioExport;
 
-/* Alterna entre "todos" e "um funcionário" no momento de gerar a impressão */
+/* Alterna entre "todos" e "um funcionário" no momento de gerar o PDF */
 function atualizarModoExport() {
   const um = document.getElementById("modoUm").checked;
   const comboWrap = document.getElementById("comboExport");
@@ -721,10 +887,10 @@ function renderAnalise(data) {
   const body = document.getElementById("analiseBody");
   const entries = Object.entries(data).sort((a, b) => diasRestantes(a[1].dataVencimento) - diasRestantes(b[1].dataVencimento));
   if (entries.length === 0) {
-    body.innerHTML = `<tr><td colspan="7" class="muted">Nenhum registro encontrado</td></tr>`;
+    atualizarCorpoTabela(body, `<tr><td colspan="7" class="muted">Nenhum registro encontrado</td></tr>`);
     return;
   }
-  body.innerHTML = entries
+  const html = entries
     .map(([id, e], i) => {
       const sit = situacao(e.dataVencimento);
       return `<tr style="animation-delay:${Math.min(i, 12) * 30}ms">
@@ -738,6 +904,7 @@ function renderAnalise(data) {
       </tr>`;
     })
     .join("");
+  atualizarCorpoTabela(body, html);
 }
 
 document.getElementById("buscaAnalise").addEventListener("input", (e) => {
@@ -750,7 +917,7 @@ document.getElementById("buscaAnalise").addEventListener("input", (e) => {
   renderAnalise(filtrado);
 });
 
-document.getElementById("btnExportar").addEventListener("click", () => {
+document.getElementById("btnExportar").addEventListener("click", (e) => {
   const um = document.getElementById("modoUm").checked;
   if (um) {
     const id = document.getElementById("exportFuncionario").value;
@@ -759,39 +926,80 @@ document.getElementById("btnExportar").addEventListener("click", () => {
       document.getElementById("exportFuncionarioInput").focus();
       return;
     }
-    exportarFicha(id);
+    exportarFicha(id, e.currentTarget);
   } else {
-    exportarFicha("todos");
+    exportarFicha("todos", e.currentTarget);
   }
 });
 
-/* Gera a ficha para impressão: um funcionário específico ou "todos", escolhido na hora */
-async function exportarFicha(alvoId) {
+/* ====================== GERAÇÃO DE PDF REAL ======================
+   Usa html2pdf.js (html2canvas + jsPDF) para gerar um arquivo .pdf de verdade,
+   que é baixado diretamente — não depende mais da caixa de diálogo de impressão
+   do navegador. A área de impressão é temporariamente exibida fora da tela
+   (classe .pdf-render) só para o html2canvas conseguir capturá-la. */
+async function exportarFicha(alvoId, botaoOrigem) {
   const printArea = document.getElementById("printArea");
   const dataGeracao = formatBR(todayISO());
 
-  if (alvoId && alvoId !== "todos") {
-    const [funcionario, entregas] = await Promise.all([
-      dbGet(`funcionarios/${alvoId}`),
-      dbGet("entregas", qEqual("funcionarioId", alvoId)),
-    ]);
-    printArea.innerHTML = montarCabecalhoDoc("Ficha de EPI", dataGeracao) + montarBlocoFicha(funcionario, entregas);
-  } else {
-    const [funcionarios, entregas] = await Promise.all([dbGet("funcionarios"), dbGet("entregas")]);
-    const blocos = Object.entries(funcionarios)
-      .sort((a, b) => (a[1].nome || "").localeCompare(b[1].nome || "", "pt-BR"))
-      .map(([id, f]) => {
-        const entregasFunc = Object.fromEntries(Object.entries(entregas).filter(([eid, e]) => e.funcionarioId === id));
-        return montarBlocoFicha(f, entregasFunc);
-      })
-      .join("");
-    printArea.innerHTML = montarCabecalhoDoc("Ficha geral de EPIs — todos os funcionários", dataGeracao) + blocos;
+  const textoOriginal = botaoOrigem ? botaoOrigem.innerHTML : null;
+  if (botaoOrigem) {
+    botaoOrigem.disabled = true;
+    botaoOrigem.innerHTML = `<svg class="icon spinner"><use href="#i-loader"/></svg>Gerando PDF...`;
   }
 
-  setTimeout(() => window.print(), 200);
+  let nomeArquivo = `ficha-epi-${todayISO()}.pdf`;
+
+  try {
+    if (alvoId && alvoId !== "todos") {
+      const [funcionario, entregas] = await Promise.all([
+        dbGet(`funcionarios/${alvoId}`),
+        dbGet("entregas", qEqual("funcionarioId", alvoId)),
+      ]);
+      printArea.innerHTML = montarCabecalhoDoc("Ficha de EPI", dataGeracao) + montarBlocoFicha(funcionario, entregas);
+      const slug = normaliza(funcionario.nome || "funcionario").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+      nomeArquivo = `ficha-epi-${slug || "funcionario"}-${todayISO()}.pdf`;
+    } else {
+      const [funcionarios, entregas] = await Promise.all([dbGet("funcionarios"), dbGet("entregas")]);
+      const blocos = Object.entries(funcionarios)
+        .sort((a, b) => (a[1].nome || "").localeCompare(b[1].nome || "", "pt-BR"))
+        .map(([id, f]) => {
+          const entregasFunc = Object.fromEntries(Object.entries(entregas).filter(([eid, e]) => e.funcionarioId === id));
+          return montarBlocoFicha(f, entregasFunc);
+        })
+        .join("");
+      printArea.innerHTML = montarCabecalhoDoc("Ficha geral de EPIs — todos os funcionários", dataGeracao) + blocos;
+      nomeArquivo = `ficha-geral-epi-${todayISO()}.pdf`;
+    }
+
+    // exibe fora da tela para o html2canvas capturar o conteúdo real (com fontes/estilos aplicados)
+    printArea.classList.add("pdf-render");
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+    await html2pdf()
+      .set({
+        margin: [10, 10, 12, 10],
+        filename: nomeArquivo,
+        image: { type: "jpeg", quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff" },
+        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+        pagebreak: { mode: ["css", "avoid-all"] },
+      })
+      .from(printArea)
+      .save();
+  } catch (err) {
+    console.error(err);
+    alert("Não foi possível gerar o PDF. Tente novamente.");
+  } finally {
+    printArea.classList.remove("pdf-render");
+    printArea.innerHTML = "";
+    if (botaoOrigem) {
+      botaoOrigem.disabled = false;
+      botaoOrigem.innerHTML = textoOriginal;
+    }
+  }
 }
 
-/* Cabeçalho único do documento impresso */
+/* Cabeçalho único do documento gerado */
 function montarCabecalhoDoc(titulo, dataGeracao) {
   return `
     <div class="doc-header">
@@ -854,4 +1062,3 @@ function montarBlocoFicha(funcionario, entregas) {
     </section>
   `;
 }
-

@@ -274,8 +274,14 @@
   </div>
 </div>
 
-<!-- ÁREA DE IMPRESSÃO / GERAÇÃO DE PDF (fora da tela, exceto durante a geração) -->
+<!-- ÁREA DE IMPRESSÃO / GERAÇÃO DE PDF (só fica visível, coberta pelo overlay, durante a geração) -->
 <div id="printArea"></div>
+
+<!-- OVERLAY exibido enquanto o PDF é gerado, cobrindo o printArea -->
+<div id="pdfOverlay" class="hidden">
+  <svg class="icon spinner"><use href="#i-loader"/></svg>
+  <span>Gerando PDF...</span>
+</div>
 
 <!-- Biblioteca para gerar o PDF real (html2canvas + jsPDF empacotados) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>

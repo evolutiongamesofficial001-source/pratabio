@@ -30,8 +30,10 @@
     <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3.5 2"/></symbol>
     <symbol id="i-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M8 12.3l2.6 2.6L16 9.5"/></symbol>
     <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></symbol>
+    <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
     <symbol id="i-party" viewBox="0 0 24 24"><path d="M4 20l3-11 11 3-9 9-5-1z"/><path d="M14 3l1.6 1.6M18 6l1.6 1.6M17 2.4L18.6 4"/></symbol>
     <symbol id="i-loader" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" opacity=".25"/><path d="M21 12a9 9 0 0 0-9-9"/></symbol>
+    <symbol id="i-boxes" viewBox="0 0 24 24"><path d="M3 9l6-3.5L15 9v7l-6 3.5L3 16z"/><path d="M9 5.5v7"/><path d="M15 9l6-3.5V13l-6 3.5"/></symbol>
   </defs>
 </svg>
 
@@ -74,6 +76,13 @@
             <span class="card-label">Vencendo em 30 dias</span>
           </div>
         </div>
+        <div class="card lowstock">
+          <svg class="icon card-icon"><use href="#i-boxes"/></svg>
+          <div class="card-text">
+            <span class="card-num" id="dashEstoqueBaixo">-</span>
+            <span class="card-label">EPIs com estoque baixo</span>
+          </div>
+        </div>
         <div class="card success">
           <svg class="icon card-icon"><use href="#i-person"/></svg>
           <div class="card-text">
@@ -90,10 +99,16 @@
         </div>
       </div>
 
-      <h2>Alertas de vencimento</h2>
+      <h2><svg class="icon"><use href="#i-alert"/></svg>Alertas de vencimento</h2>
       <table class="tbl">
         <thead><tr><th>Funcionário</th><th>EPI</th><th>Registro (CA)</th><th>Vencimento</th><th>Situação</th></tr></thead>
         <tbody id="dashAlertBody"><tr><td colspan="5" class="muted"><svg class="icon muted-icon spinner"><use href="#i-loader"/></svg>Carregando...</td></tr></tbody>
+      </table>
+
+      <h2><svg class="icon"><use href="#i-boxes"/></svg>Estoque baixo</h2>
+      <table class="tbl">
+        <thead><tr><th>EPI</th><th>Registro (CA)</th><th>Quantidade em estoque</th></tr></thead>
+        <tbody id="dashEstoqueBody"><tr><td colspan="3" class="muted"><svg class="icon muted-icon spinner"><use href="#i-loader"/></svg>Carregando...</td></tr></tbody>
       </table>
     </section>
 
@@ -128,6 +143,7 @@
         <input type="text" id="epiNome" placeholder="Nome do EPI" required>
         <input type="text" id="epiRegistro" placeholder="Registro (CA)" required>
         <input type="number" id="epiValidadeDias" placeholder="Validade (meses de uso)" required min="1">
+        <input type="number" id="epiQuantidade" placeholder="Quantidade em estoque" required min="0">
         <button type="submit" class="btn primary"><svg class="icon"><use href="#i-plus"/></svg>Salvar</button>
         <button type="button" id="epiCancelar" class="btn ghost hidden">Cancelar</button>
       </form>
@@ -138,9 +154,38 @@
       </div>
 
       <table class="tbl">
-        <thead><tr><th>Nome</th><th>Registro (CA)</th><th>Validade (meses)</th><th>Ações</th></tr></thead>
-        <tbody id="episBody"><tr><td colspan="4" class="muted"><svg class="icon muted-icon spinner"><use href="#i-loader"/></svg>Carregando...</td></tr></tbody>
+        <thead><tr><th>Nome</th><th>Registro (CA)</th><th>Validade (meses)</th><th>Estoque</th><th>Ações</th></tr></thead>
+        <tbody id="episBody"><tr><td colspan="5" class="muted"><svg class="icon muted-icon spinner"><use href="#i-loader"/></svg>Carregando...</td></tr></tbody>
       </table>
+
+      <div class="stock-box">
+        <h2><svg class="icon"><use href="#i-boxes"/></svg>Movimentar estoque</h2>
+        <p class="export-hint">Registre entrada (compra/reposição) ou saída manual (perda, descarte, ajuste) sem passar por uma entrega.</p>
+        <form id="formEstoque" class="form-inline">
+          <div class="combobox" id="comboEstoque">
+            <svg class="icon combo-icon"><use href="#i-search"/></svg>
+            <input type="text" id="estEpiInput" class="combo-input" placeholder="Buscar EPI..." autocomplete="off" required>
+            <input type="hidden" id="estEpi">
+            <button type="button" class="combo-clear hidden" id="estEpiClear" title="Limpar"><svg class="icon"><use href="#i-x"/></svg></button>
+            <div class="combobox-list hidden" id="estEpiList"></div>
+          </div>
+
+          <div class="segmented" id="estMovimentoGroup">
+            <label class="segmented-option">
+              <input type="radio" name="estMovimento" id="movEntrada" value="entrada" checked>
+              <span><svg class="icon"><use href="#i-plus"/></svg>Entrada</span>
+            </label>
+            <label class="segmented-option">
+              <input type="radio" name="estMovimento" id="movSaida" value="saida">
+              <span><svg class="icon"><use href="#i-minus"/></svg>Saída</span>
+            </label>
+          </div>
+
+          <input type="number" id="estQuantidade" placeholder="Quantidade" required min="1">
+          <button type="submit" class="btn primary"><svg class="icon"><use href="#i-refresh"/></svg>Aplicar movimentação</button>
+        </form>
+        <div id="estFeedback" class="stock-feedback hidden"></div>
+      </div>
     </section>
 
     <!-- ENTREGAS / RENOVAÇÃO -->
@@ -193,8 +238,8 @@
       </table>
 
       <div class="export-box">
-        <h2><svg class="icon"><use href="#i-printer"/></svg>Exportar ficha (PDF para impressão)</h2>
-        <p class="export-hint">Escolha o que sai na impressão, na hora de gerar:</p>
+        <h2><svg class="icon"><use href="#i-printer"/></svg>Exportar ficha (PDF)</h2>
+        <p class="export-hint">Escolha o que sai no PDF, na hora de gerar:</p>
         <div class="segmented" id="exportModoGroup">
           <label class="segmented-option">
             <input type="radio" name="exportModo" id="modoTodos" value="todos" checked>
@@ -213,7 +258,7 @@
             <button type="button" class="combo-clear hidden" id="exportFuncionarioClear" title="Limpar"><svg class="icon"><use href="#i-x"/></svg></button>
             <div class="combobox-list hidden" id="exportFuncionarioList"></div>
           </div>
-          <button id="btnExportar" class="btn primary"><svg class="icon"><use href="#i-printer"/></svg>Gerar e imprimir ficha</button>
+          <button id="btnExportar" class="btn primary"><svg class="icon"><use href="#i-printer"/></svg>Gerar PDF</button>
         </div>
       </div>
     </section>
@@ -229,9 +274,11 @@
   </div>
 </div>
 
-<!-- ÁREA DE IMPRESSÃO (somente visível ao imprimir) -->
+<!-- ÁREA DE IMPRESSÃO / GERAÇÃO DE PDF (fora da tela, exceto durante a geração) -->
 <div id="printArea"></div>
 
+<!-- Biblioteca para gerar o PDF real (html2canvas + jsPDF empacotados) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

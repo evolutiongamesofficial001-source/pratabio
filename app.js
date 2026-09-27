@@ -1,4 +1,4 @@
-/* ====================== CONFIG FIREBASE ====================== */
+/* ====================== CONFIGURAÇÃO DO FIREBASE ====================== */
 const DB_URL = "https://pratabiosevervenci-default-rtdb.europe-west1.firebasedatabase.app";
 
 async function dbGet(path, query = "") {
@@ -30,7 +30,7 @@ function qEqual(field, value) {
 /* Estoque considerado "baixo" a partir deste limite (inclusive) */
 const ESTOQUE_BAIXO_LIMITE = 5;
 
-/* ====================== HELPERS DE DATA ====================== */
+/* ===================== AJUDANTES DE DADOS ====================== */
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -39,9 +39,9 @@ function addDaysISO(iso, dias) {
   d.setDate(d.getDate() + Number(dias));
   return d.toISOString().slice(0, 10);
 }
-function addMonthsISO(iso, months) {
+function addMonthsISO(iso, meses) {
   const d = new Date(iso + "T00:00:00");
-  d.setMonth(d.getMonth() + Number(months));
+  d.setMonth(d.getMonth() + Number(meses));
   return d.toISOString().slice(0, 10);
 }
 function diasRestantes(vencISO) {
@@ -68,7 +68,7 @@ function situacaoEstoque(qtd) {
 function esc(str) {
   return (str || "").toString().replace(/[<>&"]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }[c]));
 }
-function normaliza(str) {
+function normalizar(str) {
   // remove acentos e caixa para facilitar a busca ("joão" == "joao")
   return (str || "")
     .toString()
@@ -77,7 +77,7 @@ function normaliza(str) {
     .toLowerCase();
 }
 
-/* ====================== TRANSIÇÃO SUAVE AO TROCAR CONTEÚDO DE UMA TABELA ======================
+/* ===================== TRANSIÇÃO SUAVE AO TROCAR CONTEÚDO DE UMA TABELA ======================
    Em vez de trocar o innerHTML de forma abrupta, faz um fade/slide curto para fora,
    troca o conteúdo, e faz o fade/slide de volta — deixa filtros e recarregamentos fluidos. */
 function atualizarCorpoTabela(el, html) {
@@ -95,7 +95,7 @@ function atualizarCorpoTabela(el, html) {
   }, 130);
 }
 
-/* ====================== COMBOBOX (busca com autocomplete) ======================
+/* ===================== COMBOBOX (busca com autocomplete) ======================
    Componente genérico usado nos campos de "Funcionário" e "EPI" das telas de
    Entregar/Renovar, Exportar e Movimentar estoque. Em vez de um <select> comum,
    o usuário digita e vê sugestões filtradas em tempo real, podendo navegar com o teclado.
@@ -103,7 +103,7 @@ function atualizarCorpoTabela(el, html) {
 function criarCombobox({ inputId, hiddenId, listId, clearId, getData, renderMain, renderSub, matchFields, onSelect, onClear }) {
   const input = document.getElementById(inputId);
   const hidden = document.getElementById(hiddenId);
-  const list = document.getElementById(listId);
+  const lista = document.getElementById(listId);
   const clearBtn = clearId ? document.getElementById(clearId) : null;
   let activeIndex = -1;
   let currentItems = [];
@@ -118,21 +118,21 @@ function criarCombobox({ inputId, hiddenId, listId, clearId, getData, renderMain
   }
 
   function fechar() {
-    list.classList.add("hidden");
-    list.innerHTML = "";
+    lista.classList.add("hidden");
+    lista.innerHTML = "";
     activeIndex = -1;
   }
 
-  function marcarValidade() {
+  function marcarValido() {
     input.classList.toggle("is-valid", !!hidden.value);
   }
 
   function abrir(termo) {
     const data = getData() || {};
-    const termoNorm = normaliza(termo);
+    const termoNorm = normalizar(termo);
     const entries = Object.entries(data).filter(([id, obj]) => {
       if (!termoNorm) return true;
-      const campos = matchFields(obj).map(normaliza);
+      const campos = matchFields(obj).map(normalizar);
       return campos.some((c) => c.includes(termoNorm));
     });
 
@@ -143,12 +143,12 @@ function criarCombobox({ inputId, hiddenId, listId, clearId, getData, renderMain
     activeIndex = -1;
 
     if (entries.length === 0) {
-      list.innerHTML = `<div class="combobox-empty">Nenhum resultado encontrado</div>`;
-      list.classList.remove("hidden");
+      lista.innerHTML = `<div class="combobox-empty">Nenhum resultado encontrado</div>`;
+      lista.classList.remove("hidden");
       return;
     }
 
-    list.innerHTML = entries
+    lista.innerHTML = entries
       .map(([id, obj], i) => {
         const sub = renderSub ? renderSub(obj) : "";
         return `<div class="combobox-item" data-id="${esc(id)}" data-index="${i}">
@@ -157,7 +157,7 @@ function criarCombobox({ inputId, hiddenId, listId, clearId, getData, renderMain
         </div>`;
       })
       .join("");
-    list.classList.remove("hidden");
+    lista.classList.remove("hidden");
   }
 
   function selecionar(id) {
@@ -166,7 +166,7 @@ function criarCombobox({ inputId, hiddenId, listId, clearId, getData, renderMain
     if (!obj) return;
     hidden.value = id;
     input.value = itemLabel(obj);
-    marcarValidade();
+    marcarValido();
     atualizarBotaoLimpar();
     fechar();
     if (onSelect) onSelect(id, obj);
@@ -175,28 +175,27 @@ function criarCombobox({ inputId, hiddenId, listId, clearId, getData, renderMain
   function limpar() {
     hidden.value = "";
     input.value = "";
-    marcarValidade();
+    marcarValido();
     atualizarBotaoLimpar();
     fechar();
     if (onClear) onClear();
-    input.focus();
   }
 
   input.addEventListener("focus", () => abrir(input.value));
   input.addEventListener("input", () => {
     if (hidden.value) {
       hidden.value = "";
-      marcarValidade();
+      marcarValido();
       atualizarBotaoLimpar();
     }
     abrir(input.value);
   });
 
   input.addEventListener("keydown", (e) => {
-    const itens = list.querySelectorAll(".combobox-item");
+    const itens = lista.querySelectorAll(".combobox-item");
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      if (list.classList.contains("hidden")) return abrir(input.value);
+      if (lista.classList.contains("hidden")) return abrir(input.value);
       activeIndex = Math.min(activeIndex + 1, itens.length - 1);
       itens.forEach((el, i) => el.classList.toggle("active", i === activeIndex));
       itens[activeIndex]?.scrollIntoView({ block: "nearest" });
@@ -206,7 +205,7 @@ function criarCombobox({ inputId, hiddenId, listId, clearId, getData, renderMain
       itens.forEach((el, i) => el.classList.toggle("active", i === activeIndex));
       itens[activeIndex]?.scrollIntoView({ block: "nearest" });
     } else if (e.key === "Enter") {
-      if (!list.classList.contains("hidden") && activeIndex >= 0 && currentItems[activeIndex]) {
+      if (!lista.classList.contains("hidden") && activeIndex >= 0 && currentItems[activeIndex]) {
         e.preventDefault();
         selecionar(currentItems[activeIndex][0]);
       }
@@ -215,7 +214,7 @@ function criarCombobox({ inputId, hiddenId, listId, clearId, getData, renderMain
     }
   });
 
-  list.addEventListener("mousedown", (e) => {
+  lista.addEventListener("mousedown", (e) => {
     const item = e.target.closest(".combobox-item");
     if (!item) return;
     e.preventDefault();
@@ -226,6 +225,7 @@ function criarCombobox({ inputId, hiddenId, listId, clearId, getData, renderMain
     clearBtn.addEventListener("click", (e) => {
       e.preventDefault();
       limpar();
+      input.focus();
     });
   }
 
@@ -235,59 +235,47 @@ function criarCombobox({ inputId, hiddenId, listId, clearId, getData, renderMain
     }
   });
 
-  input.addEventListener("blur", () => {
-    // se o texto digitado não corresponde a uma seleção válida, avisa visualmente
-    setTimeout(() => {
-      if (!hidden.value && input.value.trim() !== "") {
-        input.classList.add("is-valid"); // evita ficar vermelho sem necessidade
-        input.classList.remove("is-valid");
-      }
-    }, 150);
-  });
-
   atualizarBotaoLimpar();
-  marcarValidade();
+  marcarValido();
 
-  return { limpar, selecionar, refresh: () => abrir(input.value) };
+  return { limpar, selecionar, atualizar: () => abrir(input.value) };
 }
 
 /* ====================== ROTEAMENTO ====================== */
-const routes = ["dashboard", "funcionarios", "epis", "entregas", "analise"];
+const rotas = ["dashboard", "funcionarios", "epis", "entregas", "analise"];
 
-function router() {
+function roteador() {
   let hash = location.hash.replace("#", "") || "dashboard";
-  if (!routes.includes(hash)) hash = "dashboard";
+  if (!rotas.includes(hash)) hash = "dashboard";
 
-  routes.forEach((r) => {
+  rotas.forEach((r) => {
     document.getElementById("sec-" + r).classList.toggle("hidden", r !== hash);
     const link = document.querySelector(`.nav-link[data-route="${r}"]`);
     if (link) link.classList.toggle("active", r === hash);
   });
 
-  // reinicia a animação de entrada da página ativa (força reflow)
+  // reinicia a animação de entrada da página ativa (força refluxo)
   const secAtiva = document.getElementById("sec-" + hash);
   secAtiva.classList.remove("page-anim");
   void secAtiva.offsetWidth;
   secAtiva.classList.add("page-anim");
 
-  if (hash === "dashboard") loadDashboard();
-  if (hash === "funcionarios") loadFuncionarios();
-  if (hash === "epis") loadEpis();
-  if (hash === "entregas") loadEntregasPage();
-  if (hash === "analise") loadAnalise();
+  if (hash === "dashboard") carregarDashboard();
+  if (hash === "funcionarios") carregarFuncionarios();
+  if (hash === "epis") carregarEpis();
+  if (hash === "entregas") carregarPaginaEntregas();
+  if (hash === "analise") carregarAnalise();
 }
-window.addEventListener("hashchange", router);
+window.addEventListener("hashchange", roteador);
 window.addEventListener("DOMContentLoaded", () => {
   document.getElementById("entData").value = todayISO();
-  router();
+  roteador();
 });
 
-/* ====================== DASHBOARD ======================
-   Reescrito para não depender de queries filtradas (orderBy/endAt) do Firebase,
-   que exigem regra de índice (.indexOn) configurada e podiam falhar silenciosamente
-   ou deixar o painel com números errados/vazios. Agora busca tudo de uma vez e
-   calcula localmente — mais simples e confiável. */
-async function loadDashboard() {
+/* ====================== PAINEL DE CONTROLE (DASHBOARD) =====================
+   Busca tudo de uma vez e calcula localmente, sem depender de índices
+   (.indexOn) do Firebase — mais simples e confiável. */
+async function carregarDashboard() {
   const alertBody = document.getElementById("dashAlertBody");
   const estoqueBody = document.getElementById("dashEstoqueBody");
   alertBody.innerHTML = `<tr><td colspan="5" class="muted"><svg class="icon muted-icon spinner"><use href="#i-loader"/></svg>Carregando...</td></tr>`;
@@ -296,7 +284,7 @@ async function loadDashboard() {
   let entregas, funcionarios, epis;
   try {
     [entregas, funcionarios, epis] = await Promise.all([dbGet("entregas"), dbGet("funcionarios"), dbGet("epis")]);
-  } catch (err) {
+  } catch (erro) {
     alertBody.innerHTML = `<tr><td colspan="5" class="muted">Não foi possível carregar os dados. Verifique sua conexão e tente novamente.</td></tr>`;
     estoqueBody.innerHTML = `<tr><td colspan="3" class="muted">Não foi possível carregar os dados.</td></tr>`;
     return;
@@ -365,7 +353,7 @@ async function loadDashboard() {
 /* ====================== FUNCIONÁRIOS ====================== */
 let funcionariosCache = {};
 
-async function loadFuncionarios() {
+async function carregarFuncionarios() {
   const body = document.getElementById("funcionariosBody");
   body.innerHTML = `<tr><td colspan="4" class="muted"><svg class="icon muted-icon spinner"><use href="#i-loader"/></svg>Carregando...</td></tr>`;
   funcionariosCache = await dbGet("funcionarios");
@@ -380,6 +368,7 @@ function renderFuncionarios(data) {
     return;
   }
   const html = entries
+    .sort((a, b) => (a[1].nome || "").localeCompare(b[1].nome || "", "pt-BR"))
     .map(
       ([id, f], i) => `<tr style="animation-delay:${Math.min(i, 12) * 30}ms">
       <td>${esc(f.nome)}</td>
@@ -413,7 +402,7 @@ document.getElementById("formFuncionario").addEventListener("submit", async (e) 
   document.getElementById("formFuncionario").reset();
   document.getElementById("funcId").value = "";
   document.getElementById("funcCancelar").classList.add("hidden");
-  loadFuncionarios();
+  carregarFuncionarios();
 });
 
 function editarFuncionario(id) {
@@ -431,29 +420,39 @@ document.getElementById("funcCancelar").addEventListener("click", () => {
   document.getElementById("funcCancelar").classList.add("hidden");
 });
 
+/* Exclui o funcionário E todo o histórico de entregas (fichas) associado a ele no banco.
+   Isso é definitivo: uma vez confirmado, não é possível recuperar os registros. */
 async function excluirFuncionario(id) {
-  if (!confirm("Excluir este funcionário? Isso não apaga o histórico de entregas.")) return;
-  await dbDelete(`funcionarios/${id}`);
-  loadFuncionarios();
+  const f = funcionariosCache[id];
+  const nome = f ? f.nome : "este funcionário";
+  if (!confirm(`Excluir "${nome}"?\n\nTodas as entregas e o histórico de EPIs dessa pessoa também serão apagados permanentemente do banco de dados. Esta ação não pode ser desfeita.`)) return;
+
+  try {
+    const relacionadas = await dbGet("entregas", qEqual("funcionarioId", id));
+    await Promise.all(Object.keys(relacionadas).map((eid) => dbDelete(`entregas/${eid}`)));
+    await dbDelete(`funcionarios/${id}`);
+  } catch (erro) {
+    alert("Não foi possível concluir a exclusão. Verifique sua conexão e tente novamente.");
+    return;
+  }
+  carregarFuncionarios();
 }
 
 document.getElementById("buscaFuncionario").addEventListener("input", (e) => {
-  const termo = normaliza(e.target.value);
+  const termo = normalizar(e.target.value);
   const filtrado = Object.fromEntries(
     Object.entries(funcionariosCache).filter(([id, f]) =>
-      [f.nome, f.cargo, f.matricula].some((campo) => normaliza(campo).includes(termo))
+      [f.nome, f.cargo, f.matricula].some((campo) => normalizar(campo).includes(termo))
     )
   );
   renderFuncionarios(filtrado);
 });
 
-/* ====================== FICHA INDIVIDUAL (MODAL) ====================== */
+/* ===================== FICHA INDIVIDUAL (MODAL) ====================== */
 async function abrirFichaFuncionario(id) {
   const modal = document.getElementById("modalFuncionario");
   const conteudo = document.getElementById("modalConteudo");
   conteudo.innerHTML = `<p class="muted"><svg class="icon muted-icon spinner"><use href="#i-loader"/></svg>Carregando...</p>`;
-  modal.classList.add("hidden");
-  void modal.offsetWidth;
   modal.classList.remove("hidden");
 
   const [funcionario, entregas] = await Promise.all([
@@ -469,7 +468,7 @@ async function abrirFichaFuncionario(id) {
       ${esc(funcionario.cargo) || "-"} · Matrícula: ${esc(funcionario.matricula) || "-"}
     </p>
     <table class="tbl">
-      <thead><tr><th>EPI</th><th>Registro</th><th>Entrega</th><th>Vencimento</th><th>Situação</th></tr></thead>
+      <thead><tr><th>EPI</th><th>Registro</th><th>Qtd</th><th>Entrega</th><th>Vencimento</th><th>Situação</th></tr></thead>
       <tbody>
         ${
           lista.length
@@ -479,13 +478,14 @@ async function abrirFichaFuncionario(id) {
                   return `<tr>
                 <td>${esc(e.epiNome)}</td>
                 <td>${esc(e.epiRegistro)}</td>
+                <td>${Number(e.quantidade ?? 1)}</td>
                 <td>${formatBR(e.dataEntrega)}</td>
                 <td>${formatBR(e.dataVencimento)}</td>
                 <td><span class="badge ${sit.cls}">${sit.label}</span></td>
               </tr>`;
                 })
                 .join("")
-            : `<tr><td colspan="5" class="muted">Nenhum EPI entregue</td></tr>`
+            : `<tr><td colspan="6" class="muted">Nenhum EPI entregue</td></tr>`
         }
       </tbody>
     </table>
@@ -498,12 +498,15 @@ async function abrirFichaFuncionario(id) {
 document.getElementById("modalFechar").addEventListener("click", () => {
   document.getElementById("modalFuncionario").classList.add("hidden");
 });
+document.getElementById("modalFuncionario").addEventListener("mousedown", (e) => {
+  if (e.target.id === "modalFuncionario") document.getElementById("modalFuncionario").classList.add("hidden");
+});
 
 /* ====================== EPIs (cadastro + estoque) ====================== */
 let episCache = {};
 let comboEstoque;
 
-async function loadEpis() {
+async function carregarEpis() {
   const body = document.getElementById("episBody");
   body.innerHTML = `<tr><td colspan="5" class="muted"><svg class="icon muted-icon spinner"><use href="#i-loader"/></svg>Carregando...</td></tr>`;
   episCache = await dbGet("epis");
@@ -521,7 +524,7 @@ async function loadEpis() {
       matchFields: (ep) => [ep.nome, ep.registro],
     });
   } else {
-    comboEstoque.refresh();
+    comboEstoque.atualizar();
   }
 }
 
@@ -533,6 +536,7 @@ function renderEpis(data) {
     return;
   }
   const html = entries
+    .sort((a, b) => (a[1].nome || "").localeCompare(b[1].nome || "", "pt-BR"))
     .map(([id, ep], i) => {
       const qtd = Number(ep.quantidade ?? 0);
       const sit = situacaoEstoque(qtd);
@@ -557,7 +561,7 @@ document.getElementById("formEpi").addEventListener("submit", async (e) => {
   const dados = {
     nome: document.getElementById("epiNome").value.trim(),
     registro: document.getElementById("epiRegistro").value.trim(),
-    validadeMeses: Number(document.getElementById("epiValidadeDias").value),
+    validadeMeses: Number(document.getElementById("epiValidadeMeses").value),
     quantidade: Number(document.getElementById("epiQuantidade").value),
     dataCadastro: id ? episCache[id]?.dataCadastro || todayISO() : todayISO(),
   };
@@ -569,7 +573,7 @@ document.getElementById("formEpi").addEventListener("submit", async (e) => {
   document.getElementById("formEpi").reset();
   document.getElementById("epiId").value = "";
   document.getElementById("epiCancelar").classList.add("hidden");
-  loadEpis();
+  carregarEpis();
 });
 
 function editarEpi(id) {
@@ -577,7 +581,7 @@ function editarEpi(id) {
   document.getElementById("epiId").value = id;
   document.getElementById("epiNome").value = ep.nome || "";
   document.getElementById("epiRegistro").value = ep.registro || "";
-  document.getElementById("epiValidadeDias").value = ep.validadeMeses || "";
+  document.getElementById("epiValidadeMeses").value = ep.validadeMeses || "";
   document.getElementById("epiQuantidade").value = Number(ep.quantidade ?? 0);
   document.getElementById("epiCancelar").classList.remove("hidden");
   window.scrollTo({ top: 0, behavior: "smooth" });
@@ -591,14 +595,14 @@ document.getElementById("epiCancelar").addEventListener("click", () => {
 async function excluirEpi(id) {
   if (!confirm("Excluir este tipo de EPI? O histórico de entregas já feitas não será apagado.")) return;
   await dbDelete(`epis/${id}`);
-  loadEpis();
+  carregarEpis();
 }
 
 document.getElementById("buscaEpi").addEventListener("input", (e) => {
-  const termo = normaliza(e.target.value);
+  const termo = normalizar(e.target.value);
   const filtrado = Object.fromEntries(
     Object.entries(episCache).filter(
-      ([id, ep]) => normaliza(ep.nome).includes(termo) || normaliza(ep.registro).includes(termo)
+      ([id, ep]) => normalizar(ep.nome).includes(termo) || normalizar(ep.registro).includes(termo)
     )
   );
   renderEpis(filtrado);
@@ -613,7 +617,8 @@ function mostrarFeedbackEstoque(msg, tipo) {
   estFeedback.className = `stock-feedback ${tipo}`;
   estFeedback.classList.remove("hidden");
   void estFeedback.offsetWidth;
-  estFeedback.classList.add(tipo === "erro" ? "shake" : "");
+  if (tipo === "erro") estFeedback.classList.add("shake");
+  else estFeedback.classList.remove("shake");
   clearTimeout(mostrarFeedbackEstoque._t);
   mostrarFeedbackEstoque._t = setTimeout(() => estFeedback.classList.add("hidden"), 4000);
 }
@@ -654,18 +659,23 @@ formEstoque.addEventListener("submit", async (e) => {
   );
 
   formEstoque.reset();
+  document.getElementById("estQuantidade").value = "";
   document.getElementById("movEntrada").checked = true;
   comboEstoque.limpar();
   renderEpis(episCache);
 });
 
-/* ====================== ENTREGAS / RENOVAÇÃO ====================== */
+/* ===================== ENTREGAS / RENOVAÇÃO ====================== */
 let entregasCache = {};
 let comboFuncionarioEntrega, comboEpiEntrega;
 
-async function loadEntregasPage() {
+/* Itens que o usuário foi adicionando antes de confirmar a entrega —
+   é isso que permite entregar vários EPIs diferentes de uma só vez. */
+let itensEntrega = [];
+
+async function carregarPaginaEntregas() {
   const body = document.getElementById("entregasBody");
-  body.innerHTML = `<tr><td colspan="8" class="muted"><svg class="icon muted-icon spinner"><use href="#i-loader"/></svg>Carregando...</td></tr>`;
+  body.innerHTML = `<tr><td colspan="9" class="muted"><svg class="icon muted-icon spinner"><use href="#i-loader"/></svg>Carregando...</td></tr>`;
 
   const [funcionarios, epis, entregas] = await Promise.all([dbGet("funcionarios"), dbGet("epis"), dbGet("entregas")]);
 
@@ -674,10 +684,13 @@ async function loadEntregasPage() {
   entregasCache = entregas;
 
   // limpa seleção anterior ao recarregar a página
+  itensEntrega = [];
+  renderItensEntrega();
   document.getElementById("entFuncionarioInput").value = "";
   document.getElementById("entFuncionario").value = "";
   document.getElementById("entEpiInput").value = "";
   document.getElementById("entEpi").value = "";
+  document.getElementById("entQuantidade").value = 1;
 
   if (!comboFuncionarioEntrega) {
     comboFuncionarioEntrega = criarCombobox({
@@ -704,17 +717,159 @@ async function loadEntregasPage() {
       matchFields: (ep) => [ep.nome, ep.registro],
     });
   } else {
-    comboEpiEntrega.refresh();
+    comboEpiEntrega.atualizar();
   }
 
   renderEntregas(entregasCache);
 }
 
+/* Quantidade já reservada para um EPI somando os itens já colocados na lista
+   (para não deixar adicionar mais do que existe em estoque). */
+function qtdJaReservada(epiId) {
+  return itensEntrega.filter((it) => it.epiId === epiId).reduce((soma, it) => soma + it.quantidade, 0);
+}
+
+function renderItensEntrega() {
+  const body = document.getElementById("itensEntregaBody");
+  const btnConfirmar = document.getElementById("btnConfirmarEntrega");
+
+  if (itensEntrega.length === 0) {
+    body.innerHTML = `<tr><td colspan="4" class="muted">Nenhum item adicionado ainda</td></tr>`;
+    btnConfirmar.disabled = true;
+    btnConfirmar.innerHTML = `<svg class="icon"><use href="#i-package"/></svg>Confirmar entrega`;
+    return;
+  }
+
+  body.innerHTML = itensEntrega
+    .map(
+      (it, i) => `<tr>
+        <td>${esc(it.epiNome)}</td>
+        <td class="mono">${esc(it.epiRegistro)}</td>
+        <td class="item-qtd-cell">${it.quantidade}</td>
+        <td><button type="button" class="item-remove" onclick="removerItemEntrega(${i})" title="Remover"><svg class="icon"><use href="#i-x"/></svg></button></td>
+      </tr>`
+    )
+    .join("");
+
+  btnConfirmar.disabled = false;
+  const totalItens = itensEntrega.reduce((s, it) => s + it.quantidade, 0);
+  btnConfirmar.innerHTML = `<svg class="icon"><use href="#i-package"/></svg>Confirmar entrega (${itensEntrega.length} ${itensEntrega.length === 1 ? "item" : "itens"} · ${totalItens} un.)`;
+}
+
+function removerItemEntrega(index) {
+  itensEntrega.splice(index, 1);
+  renderItensEntrega();
+}
+
+document.getElementById("btnAdicionarItem").addEventListener("click", () => {
+  const epiId = document.getElementById("entEpi").value;
+  const epi = episCache[epiId];
+  const qtd = Number(document.getElementById("entQuantidade").value) || 0;
+
+  if (!epi) {
+    alert("Busque e selecione um EPI válido na lista antes de adicionar.");
+    document.getElementById("entEpiInput").focus();
+    return;
+  }
+  if (qtd <= 0) {
+    alert("Informe uma quantidade maior que zero.");
+    return;
+  }
+
+  const estoqueAtual = Number(epi.quantidade ?? 0);
+  const reservado = qtdJaReservada(epiId);
+  if (reservado + qtd > estoqueAtual) {
+    alert(`Estoque insuficiente de "${epi.nome}": há ${estoqueAtual} unidade(s) e ${reservado} já reservada(s) nesta entrega.`);
+    return;
+  }
+
+  const existente = itensEntrega.find((it) => it.epiId === epiId);
+  if (existente) {
+    existente.quantidade += qtd;
+  } else {
+    itensEntrega.push({
+      epiId,
+      epiNome: epi.nome,
+      epiRegistro: epi.registro,
+      validadeMeses: epi.validadeMeses,
+      quantidade: qtd,
+    });
+  }
+
+  renderItensEntrega();
+  comboEpiEntrega.limpar();
+  document.getElementById("entQuantidade").value = 1;
+  document.getElementById("entEpiInput").focus();
+});
+
+document.getElementById("btnConfirmarEntrega").addEventListener("click", async () => {
+  const funcId = document.getElementById("entFuncionario").value;
+  const dataEntrega = document.getElementById("entData").value;
+  const funcionario = funcionariosCache[funcId];
+
+  if (!funcionario) {
+    alert("Selecione um funcionário válido na busca (clique em um resultado da lista).");
+    document.getElementById("entFuncionarioInput").focus();
+    return;
+  }
+  if (!dataEntrega) {
+    alert("Informe a data da entrega.");
+    return;
+  }
+  if (itensEntrega.length === 0) {
+    alert("Adicione ao menos um EPI à lista antes de confirmar.");
+    return;
+  }
+
+  const btn = document.getElementById("btnConfirmarEntrega");
+  btn.disabled = true;
+  const htmlOriginal = btn.innerHTML;
+  btn.innerHTML = `<svg class="icon spinner"><use href="#i-loader"/></svg>Registrando...`;
+
+  try {
+    for (const item of itensEntrega) {
+      const epiAtual = episCache[item.epiId];
+      const estoqueAtual = Number(epiAtual?.quantidade ?? 0);
+      if (estoqueAtual < item.quantidade) {
+        throw new Error(`Estoque de "${item.epiNome}" mudou e não é mais suficiente (restam ${estoqueAtual}).`);
+      }
+
+      const dataVencimento = addMonthsISO(dataEntrega, item.validadeMeses);
+      const dados = {
+        funcionarioId: funcId,
+        funcionarioNome: funcionario.nome,
+        epiId: item.epiId,
+        epiNome: item.epiNome,
+        epiRegistro: item.epiRegistro,
+        quantidade: item.quantidade,
+        dataEntrega,
+        dataVencimento,
+        status: "ativo",
+        historico: [],
+      };
+      await dbPost("entregas", dados);
+
+      const novaQtd = estoqueAtual - item.quantidade;
+      await dbPatch(`epis/${item.epiId}`, { quantidade: novaQtd });
+      episCache[item.epiId] = { ...epiAtual, quantidade: novaQtd };
+    }
+
+    itensEntrega = [];
+    comboFuncionarioEntrega.limpar();
+    document.getElementById("entData").value = todayISO();
+    carregarPaginaEntregas();
+  } catch (erro) {
+    alert("Não foi possível concluir a entrega: " + (erro.message || "tente novamente."));
+    btn.disabled = false;
+    btn.innerHTML = htmlOriginal;
+  }
+});
+
 function renderEntregas(data) {
   const body = document.getElementById("entregasBody");
   const entries = Object.entries(data).sort((a, b) => (a[1].dataVencimento < b[1].dataVencimento ? -1 : 1));
   if (entries.length === 0) {
-    atualizarCorpoTabela(body, `<tr><td colspan="8" class="muted">Nenhuma entrega registrada</td></tr>`);
+    atualizarCorpoTabela(body, `<tr><td colspan="9" class="muted">Nenhuma entrega registrada</td></tr>`);
     return;
   }
   const html = entries
@@ -724,6 +879,7 @@ function renderEntregas(data) {
         <td>${esc(e.funcionarioNome)}</td>
         <td>${esc(e.epiNome)}</td>
         <td>${esc(e.epiRegistro)}</td>
+        <td>${Number(e.quantidade ?? 1)}</td>
         <td>${formatBR(e.dataEntrega)}</td>
         <td>${formatBR(e.dataVencimento)}</td>
         <td>${diasRestantes(e.dataVencimento)}</td>
@@ -738,72 +894,19 @@ function renderEntregas(data) {
   atualizarCorpoTabela(body, html);
 }
 
-document.getElementById("formEntrega").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const funcId = document.getElementById("entFuncionario").value;
-  const epiId = document.getElementById("entEpi").value;
-  const dataEntrega = document.getElementById("entData").value;
-
-  const funcionario = funcionariosCache[funcId];
-  const epi = episCache[epiId];
-
-  if (!funcionario) {
-    alert("Selecione um funcionário válido na busca (clique em um resultado da lista).");
-    document.getElementById("entFuncionarioInput").focus();
-    return;
-  }
-  if (!epi) {
-    alert("Selecione um EPI válido na busca (clique em um resultado da lista).");
-    document.getElementById("entEpiInput").focus();
-    return;
-  }
-
-  const estoqueAtual = Number(epi.quantidade ?? 0);
-  if (estoqueAtual <= 0) {
-    alert(`Não há estoque de "${epi.nome}" para entregar. Registre uma entrada em Cadastro de EPI → Movimentar estoque.`);
-    return;
-  }
-
-  const dataVencimento = addMonthsISO(dataEntrega, epi.validadeMeses);
-
-  const dados = {
-    funcionarioId: funcId,
-    funcionarioNome: funcionario.nome,
-    epiId: epiId,
-    epiNome: epi.nome,
-    epiRegistro: epi.registro,
-    dataEntrega,
-    dataVencimento,
-    status: "ativo",
-    historico: [],
-  };
-
-  await dbPost("entregas", dados);
-
-  // baixa automática no estoque ao distribuir o EPI
-  const novaQtd = estoqueAtual - 1;
-  await dbPatch(`epis/${epiId}`, { quantidade: novaQtd });
-  episCache[epiId] = { ...epi, quantidade: novaQtd };
-
-  document.getElementById("formEntrega").reset();
-  document.getElementById("entData").value = todayISO();
-  comboFuncionarioEntrega.limpar();
-  comboEpiEntrega.limpar();
-  loadEntregasPage();
-});
-
 async function renovarEntrega(id) {
   const e = entregasCache[id];
   if (!e) return;
 
   const epi = episCache[e.epiId] || (await dbGet(`epis/${e.epiId}`));
   const estoqueAtual = Number(epi.quantidade ?? 0);
+  const qtdNecessaria = Number(e.quantidade ?? 1);
 
-  if (estoqueAtual <= 0) {
-    alert(`Não há estoque de "${e.epiNome}" para renovar esta entrega. Registre uma entrada em Cadastro de EPI → Movimentar estoque.`);
+  if (estoqueAtual < qtdNecessaria) {
+    alert(`Não há estoque suficiente de "${e.epiNome}" para renovar esta entrega (necessário: ${qtdNecessaria}, disponível: ${estoqueAtual}). Registre uma entrada em Cadastro de EPI → Movimentar estoque.`);
     return;
   }
-  if (!confirm(`Renovar entrega de "${e.epiNome}" para ${e.funcionarioNome}? Isso vai baixar 1 unidade do estoque (restam ${estoqueAtual}).`)) return;
+  if (!confirm(`Renovar entrega de "${e.epiNome}" para ${e.funcionarioNome}? Isso vai baixar ${qtdNecessaria} unidade(s) do estoque (restam ${estoqueAtual}).`)) return;
 
   const novaEntrega = todayISO();
   const novoVencimento = addMonthsISO(novaEntrega, epi.validadeMeses);
@@ -818,38 +921,39 @@ async function renovarEntrega(id) {
     historico,
   });
 
-  const novaQtd = estoqueAtual - 1;
+  const novaQtd = estoqueAtual - qtdNecessaria;
   await dbPatch(`epis/${e.epiId}`, { quantidade: novaQtd });
   episCache[e.epiId] = { ...epi, quantidade: novaQtd };
 
-  loadEntregasPage();
+  carregarPaginaEntregas();
 }
 
-/* Exclui um registro de entrega. Como a entrega tinha baixado 1 unidade do estoque
-   na hora de ser feita, ao excluir devolvemos essa unidade automaticamente. */
+/* Exclui um registro de entrega. Como a entrega tinha baixado unidades do estoque
+   na hora de ser feita, ao excluir devolvemos essa quantidade automaticamente. */
 async function excluirEntrega(id) {
   const e = entregasCache[id];
   if (!e) return;
 
-  if (!confirm(`Excluir o registro de entrega de "${e.epiNome}" para ${e.funcionarioNome}?\n\n1 unidade será devolvida ao estoque desse EPI. Esta ação não pode ser desfeita.`)) return;
+  const qtd = Number(e.quantidade ?? 1);
+  if (!confirm(`Excluir o registro de entrega de "${e.epiNome}" para ${e.funcionarioNome}?\n\n${qtd} unidade(s) será(ão) devolvida(s) ao estoque desse EPI. Esta ação não pode ser desfeita.`)) return;
 
   await dbDelete(`entregas/${id}`);
 
   const epi = episCache[e.epiId] || (await dbGet(`epis/${e.epiId}`));
   if (epi) {
-    const novaQtd = Number(epi.quantidade ?? 0) + 1;
+    const novaQtd = Number(epi.quantidade ?? 0) + qtd;
     await dbPatch(`epis/${e.epiId}`, { quantidade: novaQtd });
     episCache[e.epiId] = { ...epi, quantidade: novaQtd };
   }
 
-  loadEntregasPage();
+  carregarPaginaEntregas();
 }
 
 document.getElementById("buscaEntrega").addEventListener("input", (e) => {
-  const termo = normaliza(e.target.value);
+  const termo = normalizar(e.target.value);
   const filtrado = Object.fromEntries(
     Object.entries(entregasCache).filter(([id, en]) =>
-      [en.funcionarioNome, en.epiNome, en.epiRegistro].some((campo) => normaliza(campo).includes(termo))
+      [en.funcionarioNome, en.epiNome, en.epiRegistro].some((campo) => normalizar(campo).includes(termo))
     )
   );
   renderEntregas(filtrado);
@@ -874,9 +978,9 @@ function atualizarModoExport() {
 document.getElementById("modoTodos").addEventListener("change", atualizarModoExport);
 document.getElementById("modoUm").addEventListener("change", atualizarModoExport);
 
-async function loadAnalise() {
+async function carregarAnalise() {
   const body = document.getElementById("analiseBody");
-  body.innerHTML = `<tr><td colspan="7" class="muted"><svg class="icon muted-icon spinner"><use href="#i-loader"/></svg>Carregando...</td></tr>`;
+  body.innerHTML = `<tr><td colspan="8" class="muted"><svg class="icon muted-icon spinner"><use href="#i-loader"/></svg>Carregando...</td></tr>`;
 
   const [entregas, funcionarios] = await Promise.all([dbGet("entregas"), dbGet("funcionarios")]);
   analiseCache = entregas;
@@ -910,7 +1014,7 @@ function renderAnalise(data) {
   const body = document.getElementById("analiseBody");
   const entries = Object.entries(data).sort((a, b) => diasRestantes(a[1].dataVencimento) - diasRestantes(b[1].dataVencimento));
   if (entries.length === 0) {
-    atualizarCorpoTabela(body, `<tr><td colspan="7" class="muted">Nenhum registro encontrado</td></tr>`);
+    atualizarCorpoTabela(body, `<tr><td colspan="8" class="muted">Nenhum registro encontrado</td></tr>`);
     return;
   }
   const html = entries
@@ -920,6 +1024,7 @@ function renderAnalise(data) {
         <td>${esc(e.funcionarioNome)}</td>
         <td>${esc(e.epiNome)}</td>
         <td>${esc(e.epiRegistro)}</td>
+        <td>${Number(e.quantidade ?? 1)}</td>
         <td>${formatBR(e.dataEntrega)}</td>
         <td>${formatBR(e.dataVencimento)}</td>
         <td>${diasRestantes(e.dataVencimento)}</td>
@@ -931,10 +1036,10 @@ function renderAnalise(data) {
 }
 
 document.getElementById("buscaAnalise").addEventListener("input", (e) => {
-  const termo = normaliza(e.target.value);
+  const termo = normalizar(e.target.value);
   const filtrado = Object.fromEntries(
     Object.entries(analiseCache).filter(([id, en]) =>
-      [en.funcionarioNome, en.epiNome, en.epiRegistro].some((campo) => normaliza(campo).includes(termo))
+      [en.funcionarioNome, en.epiNome, en.epiRegistro].some((campo) => normalizar(campo).includes(termo))
     )
   );
   renderAnalise(filtrado);
@@ -945,7 +1050,7 @@ document.getElementById("btnExportar").addEventListener("click", (e) => {
   if (um) {
     const id = document.getElementById("exportFuncionario").value;
     if (!id || id === "todos") {
-      alert("Busque e selecione um funcionário na lista antes de gerar a ficha individual.");
+      alert("Busque e selecione um funcionário na lista antes de gerar uma ficha individual.");
       document.getElementById("exportFuncionarioInput").focus();
       return;
     }
@@ -955,14 +1060,13 @@ document.getElementById("btnExportar").addEventListener("click", (e) => {
   }
 });
 
-/* ====================== GERAÇÃO DE PDF REAL ======================
-   Usa html2pdf.js (html2canvas + jsPDF) para gerar um arquivo .pdf de verdade,
-   que é baixado diretamente. O html2canvas só consegue capturar corretamente
-   conteúdo que está de fato "pintado" na tela — por isso o printArea fica
-   visível (na posição 0,0), mas coberto por um overlay opaco (#pdfOverlay)
-   para o usuário não ver o flash de conteúdo. Também esperamos as fontes
-   carregarem antes de tirar a "foto", senão o texto sai com a fonte padrão
-   do navegador (ou até em branco em alguns casos).*/
+/* ====================== GERAÇÃO DE PDF REAL =======================
+   Usa html2pdf.js (html2canvas + jsPDF) para gerar um arquivo .pdf de verdade.
+   O html2canvas só consegue capturar corretamente conteúdo que está de fato
+   "pintado" na tela — por isso o printArea fica visível (na posição 0,0), mas
+   coberto por um overlay opaco (#pdfOverlay) para o usuário não ver o flash de
+   conteúdo. Também esperamos as fontes carregarem antes de tirar a "foto",
+   senão o texto sai com a fonte padrão do navegador (ou até em branco). */
 async function exportarFicha(alvoId, botaoOrigem) {
   const printArea = document.getElementById("printArea");
   const overlay = document.getElementById("pdfOverlay");
@@ -988,8 +1092,8 @@ async function exportarFicha(alvoId, botaoOrigem) {
       if (!funcionario || !funcionario.nome) {
         throw new Error("Funcionário não encontrado.");
       }
-      conteudoHtml = montarCabecalhoDoc("Ficha de EPI", dataGeracao) + montarBlocoFicha(funcionario, entregas);
-      const slug = normaliza(funcionario.nome || "funcionario").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+      conteudoHtml = montarBlocoFicha(funcionario, entregas);
+      const slug = normalizar(funcionario.nome || "funcionario").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
       nomeArquivo = `ficha-epi-${slug || "funcionario"}-${todayISO()}.pdf`;
     } else {
       const [funcionarios, entregas] = await Promise.all([dbGet("funcionarios"), dbGet("entregas")]);
@@ -1003,11 +1107,12 @@ async function exportarFicha(alvoId, botaoOrigem) {
           return montarBlocoFicha(f, entregasFunc);
         })
         .join("");
-      conteudoHtml = montarCabecalhoDoc("Ficha geral de EPIs — todos os funcionários", dataGeracao) + blocos;
+      conteudoHtml = blocos;
       nomeArquivo = `ficha-geral-epi-${todayISO()}.pdf`;
     }
 
-    printArea.innerHTML = conteudoHtml;
+    const titulo = alvoId && alvoId !== "todos" ? "Ficha de EPI" : "Ficha geral de EPIs — todos os funcionários";
+    printArea.innerHTML = `<div class="doc-page">${montarCabecalhoDoc(titulo, dataGeracao)}${conteudoHtml}${montarRodapeDoc(dataGeracao)}</div>`;
     printArea.classList.add("pdf-render");
 
     // garante que fontes (Space Grotesk / Inter / JetBrains Mono) e o layout
@@ -1020,7 +1125,7 @@ async function exportarFicha(alvoId, botaoOrigem) {
 
     await html2pdf()
       .set({
-        margin: [10, 10, 12, 10],
+        margin: 0,
         filename: nomeArquivo,
         image: { type: "jpeg", quality: 0.98 },
         html2canvas: {
@@ -1028,7 +1133,7 @@ async function exportarFicha(alvoId, botaoOrigem) {
           useCORS: true,
           backgroundColor: "#ffffff",
           windowWidth: printArea.scrollWidth,
-          // o overlay cobre a tela só visualmente para o usuário; ele precisa ser
+          // o overlay cobre a tela apenas visualmente para o usuário; ele precisa ser
           // removido do DOM clonado que o html2canvas realmente fotografa, senão
           // acaba sendo capturado por cima do conteúdo (PDF saindo em branco).
           onclone: (clonedDoc) => {
@@ -1047,9 +1152,9 @@ async function exportarFicha(alvoId, botaoOrigem) {
       })
       .from(printArea)
       .save();
-  } catch (err) {
-    console.error(err);
-    alert("Não foi possível gerar o PDF: " + (err.message || "tente novamente."));
+  } catch (erro) {
+    console.error(erro);
+    alert("Não foi possível gerar o PDF: " + (erro.message || "tente novamente."));
   } finally {
     printArea.classList.remove("pdf-render");
     printArea.innerHTML = "";
@@ -1062,15 +1167,32 @@ async function exportarFicha(alvoId, botaoOrigem) {
   }
 }
 
-/* Cabeçalho único do documento gerado */
+/* Cabeçalho (masthead) único do documento gerado */
 function montarCabecalhoDoc(titulo, dataGeracao) {
   return `
     <div class="doc-header">
-      <div class="doc-title">
+      <div class="doc-brand">
         <span class="doc-mark" aria-hidden="true"></span>
-        <h1>${esc(titulo)}</h1>
+        <div class="doc-brand-text">
+          <strong>Controle EPI</strong>
+          <span>SISTEMA DE GESTÃO DE EPI</span>
+        </div>
       </div>
-      <p class="sub">Documento gerado em ${dataGeracao} · Controle de EPI</p>
+      <div class="doc-title-block">
+        <h1>${esc(titulo)}</h1>
+        <p class="sub">Documento gerado em ${dataGeracao}</p>
+      </div>
+    </div>
+    <div class="doc-hazard" aria-hidden="true"></div>
+  `;
+}
+
+/* Rodapé do documento */
+function montarRodapeDoc(dataGeracao) {
+  return `
+    <div class="doc-footer">
+      <span>Controle EPI · documento gerado automaticamente pelo sistema</span>
+      <span>${dataGeracao}</span>
     </div>
   `;
 }
@@ -1092,13 +1214,14 @@ function montarBlocoFicha(funcionario, entregas) {
           return `<tr>
           <td>${esc(e.epiNome)}</td>
           <td class="mono">${esc(e.epiRegistro)}</td>
+          <td>${Number(e.quantidade ?? 1)}</td>
           <td>${formatBR(e.dataEntrega)}</td>
           <td>${formatBR(e.dataVencimento)}</td>
           <td><span class="sit sit-${sit.cls}">${sit.label}</span></td>
         </tr>`;
         })
         .join("")
-    : `<tr><td colspan="5" class="ficha-empty">Nenhum EPI entregue até o momento</td></tr>`;
+    : `<tr><td colspan="6" class="ficha-empty">Nenhum EPI entregue até o momento</td></tr>`;
 
   return `
     <section class="ficha-card">
@@ -1115,7 +1238,7 @@ function montarBlocoFicha(funcionario, entregas) {
         </div>
       </header>
       <table>
-        <thead><tr><th>EPI</th><th>Registro (CA)</th><th>Entrega</th><th>Vencimento</th><th>Situação</th></tr></thead>
+        <thead><tr><th>EPI</th><th>Registro (CA)</th><th>Qtd</th><th>Entrega</th><th>Vencimento</th><th>Situação</th></tr></thead>
         <tbody>${linhas}</tbody>
       </table>
       <footer class="ficha-sign">
@@ -1125,3 +1248,6 @@ function montarBlocoFicha(funcionario, entregas) {
     </section>
   `;
 }
+
+/*console.log("nada ta funcionando direito nesse codigo mds");*/
+ 

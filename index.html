@@ -31,9 +31,9 @@
     <symbol id="i-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M8 12.3l2.6 2.6L16 9.5"/></symbol>
     <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></symbol>
     <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
-    <symbol id="i-party" viewBox="0 0 24 24"><path d="M4 20l3-11 11 3-9 9-5-1z"/><path d="M14 3l1.6 1.6M18 6l1.6 1.6M17 2.4L18.6 4"/></symbol>
     <symbol id="i-loader" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" opacity=".25"/><path d="M21 12a9 9 0 0 0-9-9"/></symbol>
     <symbol id="i-boxes" viewBox="0 0 24 24"><path d="M3 9l6-3.5L15 9v7l-6 3.5L3 16z"/><path d="M9 5.5v7"/><path d="M15 9l6-3.5V13l-6 3.5"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/></symbol>
   </defs>
 </svg>
 
@@ -43,7 +43,10 @@
   <aside class="sidebar">
     <div class="logo">
       <svg class="icon logo-icon"><use href="#i-shield"/></svg>
-      <span>Controle EPI</span>
+      <div class="logo-text">
+        <span class="logo-title">Controle EPI</span>
+        <span class="logo-sub">Gestão de equipamentos de proteção</span>
+      </div>
     </div>
     <div class="hazard-rule" aria-hidden="true"></div>
     <nav>
@@ -53,6 +56,9 @@
       <a href="#entregas" class="nav-link" data-route="entregas"><svg class="icon"><use href="#i-package"/></svg><span>Entregar / Renovar</span></a>
       <a href="#analise" class="nav-link" data-route="analise"><svg class="icon"><use href="#i-bars"/></svg><span>Análise / Exportar</span></a>
     </nav>
+    <div class="sidebar-foot">
+      <span>Controle EPI · v2.0</span>
+    </div>
   </aside>
 
   <!-- CONTEÚDO -->
@@ -60,7 +66,10 @@
 
     <!-- DASHBOARD -->
     <section id="sec-dashboard" class="page">
-      <h1>Dashboard</h1>
+      <div class="page-head">
+        <h1>Dashboard</h1>
+        <p class="page-sub">Panorama geral de vencimentos, estoque e cadastros.</p>
+      </div>
       <div class="cards">
         <div class="card danger">
           <svg class="icon card-icon"><use href="#i-alert"/></svg>
@@ -114,7 +123,10 @@
 
     <!-- FUNCIONÁRIOS -->
     <section id="sec-funcionarios" class="page hidden">
-      <h1>Funcionários</h1>
+      <div class="page-head">
+        <h1>Funcionários</h1>
+        <p class="page-sub">Cadastre a equipe e acompanhe a ficha individual de cada pessoa.</p>
+      </div>
       <form id="formFuncionario" class="form-inline">
         <input type="hidden" id="funcId">
         <input type="text" id="funcNome" placeholder="Nome completo" required>
@@ -137,12 +149,15 @@
 
     <!-- EPIs -->
     <section id="sec-epis" class="page hidden">
-      <h1>Cadastro de EPI</h1>
+      <div class="page-head">
+        <h1>Cadastro de EPI</h1>
+        <p class="page-sub">Tipos de equipamento, número de registro (CA), validade de uso e estoque.</p>
+      </div>
       <form id="formEpi" class="form-inline">
         <input type="hidden" id="epiId">
         <input type="text" id="epiNome" placeholder="Nome do EPI" required>
         <input type="text" id="epiRegistro" placeholder="Registro (CA)" required>
-        <input type="number" id="epiValidadeDias" placeholder="Validade (meses de uso)" required min="1">
+        <input type="number" id="epiValidadeMeses" placeholder="Validade (meses de uso)" required min="1">
         <input type="number" id="epiQuantidade" placeholder="Quantidade em estoque" required min="0">
         <button type="submit" class="btn primary"><svg class="icon"><use href="#i-plus"/></svg>Salvar</button>
         <button type="button" id="epiCancelar" class="btn ghost hidden">Cancelar</button>
@@ -190,28 +205,53 @@
 
     <!-- ENTREGAS / RENOVAÇÃO -->
     <section id="sec-entregas" class="page hidden">
-      <h1>Entregar / Renovar EPI</h1>
-      <form id="formEntrega" class="form-inline">
+      <div class="page-head">
+        <h1>Entregar / Renovar EPI</h1>
+        <p class="page-sub">Monte a entrega com um ou mais equipamentos para o mesmo funcionário e confirme de uma vez.</p>
+      </div>
 
-        <div class="combobox" id="comboFuncionario">
-          <svg class="icon combo-icon"><use href="#i-search"/></svg>
-          <input type="text" id="entFuncionarioInput" class="combo-input" placeholder="Buscar funcionário..." autocomplete="off" required>
-          <input type="hidden" id="entFuncionario">
-          <button type="button" class="combo-clear hidden" id="entFuncionarioClear" title="Limpar"><svg class="icon"><use href="#i-x"/></svg></button>
-          <div class="combobox-list hidden" id="entFuncionarioList"></div>
+      <div class="delivery-box">
+        <div class="form-inline">
+          <div class="combobox" id="comboFuncionario">
+            <svg class="icon combo-icon"><use href="#i-search"/></svg>
+            <input type="text" id="entFuncionarioInput" class="combo-input" placeholder="Buscar funcionário..." autocomplete="off" required>
+            <input type="hidden" id="entFuncionario">
+            <button type="button" class="combo-clear hidden" id="entFuncionarioClear" title="Limpar"><svg class="icon"><use href="#i-x"/></svg></button>
+            <div class="combobox-list hidden" id="entFuncionarioList"></div>
+          </div>
+          <input type="date" id="entData" required>
         </div>
 
-        <div class="combobox" id="comboEpi">
-          <svg class="icon combo-icon"><use href="#i-search"/></svg>
-          <input type="text" id="entEpiInput" class="combo-input" placeholder="Buscar EPI..." autocomplete="off" required>
-          <input type="hidden" id="entEpi">
-          <button type="button" class="combo-clear hidden" id="entEpiClear" title="Limpar"><svg class="icon"><use href="#i-x"/></svg></button>
-          <div class="combobox-list hidden" id="entEpiList"></div>
+        <div class="form-inline item-add-row">
+          <div class="combobox" id="comboEpi">
+            <svg class="icon combo-icon"><use href="#i-search"/></svg>
+            <input type="text" id="entEpiInput" class="combo-input" placeholder="Buscar EPI para adicionar..." autocomplete="off">
+            <input type="hidden" id="entEpi">
+            <button type="button" class="combo-clear hidden" id="entEpiClear" title="Limpar"><svg class="icon"><use href="#i-x"/></svg></button>
+            <div class="combobox-list hidden" id="entEpiList"></div>
+          </div>
+          <input type="number" id="entQuantidade" min="1" value="1" title="Quantidade">
+          <button type="button" id="btnAdicionarItem" class="btn secondary"><svg class="icon"><use href="#i-plus"/></svg>Adicionar à lista</button>
         </div>
 
-        <input type="date" id="entData" required>
-        <button type="submit" class="btn primary"><svg class="icon"><use href="#i-package"/></svg>Entregar EPI</button>
-      </form>
+        <div id="itensEntregaWrap" class="items-wrap">
+          <div class="items-head">
+            <svg class="icon"><use href="#i-list"/></svg>
+            <span>Itens desta entrega</span>
+          </div>
+          <table class="tbl items-tbl">
+            <thead><tr><th>EPI</th><th>Registro (CA)</th><th>Qtd</th><th></th></tr></thead>
+            <tbody id="itensEntregaBody">
+              <tr><td colspan="4" class="muted">Nenhum item adicionado ainda</td></tr>
+            </tbody>
+          </table>
+          <div class="items-actions">
+            <button type="button" id="btnConfirmarEntrega" class="btn primary" disabled>
+              <svg class="icon"><use href="#i-package"/></svg>Confirmar entrega
+            </button>
+          </div>
+        </div>
+      </div>
 
       <div class="search-wrap">
         <svg class="icon search-icon"><use href="#i-search"/></svg>
@@ -219,22 +259,25 @@
       </div>
 
       <table class="tbl">
-        <thead><tr><th>Funcionário</th><th>EPI</th><th>Registro</th><th>Entrega</th><th>Vencimento</th><th>Dias restantes</th><th>Situação</th><th>Ações</th></tr></thead>
-        <tbody id="entregasBody"><tr><td colspan="8" class="muted"><svg class="icon muted-icon spinner"><use href="#i-loader"/></svg>Carregando...</td></tr></tbody>
+        <thead><tr><th>Funcionário</th><th>EPI</th><th>Registro</th><th>Qtd</th><th>Entrega</th><th>Vencimento</th><th>Dias restantes</th><th>Situação</th><th>Ações</th></tr></thead>
+        <tbody id="entregasBody"><tr><td colspan="9" class="muted"><svg class="icon muted-icon spinner"><use href="#i-loader"/></svg>Carregando...</td></tr></tbody>
       </table>
     </section>
 
     <!-- ANÁLISE / EXPORTAR -->
     <section id="sec-analise" class="page hidden">
-      <h1>Análise geral</h1>
+      <div class="page-head">
+        <h1>Análise geral</h1>
+        <p class="page-sub">Todas as entregas registradas no sistema, com exportação de ficha em PDF.</p>
+      </div>
       <div class="search-wrap">
         <svg class="icon search-icon"><use href="#i-search"/></svg>
         <input type="text" id="buscaAnalise" class="search" placeholder="Buscar por funcionário, EPI ou registro...">
       </div>
 
       <table class="tbl">
-        <thead><tr><th>Funcionário</th><th>EPI</th><th>Registro</th><th>Entrega</th><th>Vencimento</th><th>Dias restantes</th><th>Situação</th></tr></thead>
-        <tbody id="analiseBody"><tr><td colspan="7" class="muted"><svg class="icon muted-icon spinner"><use href="#i-loader"/></svg>Carregando...</td></tr></tbody>
+        <thead><tr><th>Funcionário</th><th>EPI</th><th>Registro</th><th>Qtd</th><th>Entrega</th><th>Vencimento</th><th>Dias restantes</th><th>Situação</th></tr></thead>
+        <tbody id="analiseBody"><tr><td colspan="8" class="muted"><svg class="icon muted-icon spinner"><use href="#i-loader"/></svg>Carregando...</td></tr></tbody>
       </table>
 
       <div class="export-box">
